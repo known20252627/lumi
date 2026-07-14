@@ -10,6 +10,9 @@ export default defineConfig({
       devOptions: {
         enabled: true
       },
+      workbox: {
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024 // 10 MB
+      },
       manifest: {
         name: 'Lumi AI',
         short_name: 'Lumi',
@@ -18,8 +21,8 @@ export default defineConfig({
         background_color: '#0f1115',
         display: 'standalone',
         icons: [
-          { src: 'vite.svg', sizes: '192x192', type: 'image/svg+xml' },
-          { src: 'vite.svg', sizes: '512x512', type: 'image/svg+xml' }
+          { src: 'lumi.svg', sizes: '192x192', type: 'image/svg+xml' },
+          { src: 'lumi.svg', sizes: '512x512', type: 'image/svg+xml' }
         ]
       }
     })
