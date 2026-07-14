@@ -1,0 +1,40 @@
+.mobile-menu-btn {
+  display: none;
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 20;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+
+.sidebar-wrapper {
+  height: 100vh;
+}
+
+@media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: flex;
+  }
+  
+  .sidebar-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 15;
+    transform: translateX(-100%);
+    transition: transform var(--transition-normal);
+  }
+  
+  .sidebar-wrapper.open {
+    transform: translateX(0);
+  }
+  
+  /* Add padding to main content to account for mobile menu button */
+  .main-content {
+    padding-top: 3.5rem;
+  }
+}
