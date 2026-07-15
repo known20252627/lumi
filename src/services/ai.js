@@ -171,9 +171,13 @@ const runLocalWebLLM = async (messages, progressCallback, systemPrompt) => {
 
 // --- MEMORY EXTRACTOR ---
 export const extractPersonalMemory = async (userMessage) => {
-  const prompt = `You are a background Memory Extractor. Analyze the following message from the user. 
-If the user mentions any personal facts, preferences, names, rules, or details about themselves that would be useful to remember in future conversations, extract them into a concise bullet point list.
-If there are no personal facts to extract (e.g., they just asked a coding question), output exactly the word "NONE".
+  const prompt = `You are an internal Memory Extraction AI.
+Your ONLY job is to extract permanent facts about the user from their message.
+If the user mentions their name, where they live, what they like/dislike, their tech stack, or any personal detail, you MUST extract it as a short bullet point.
+If the user says "My name is X", you MUST extract "User's name is X".
+
+If there are NO personal facts at all in the message, you MUST output exactly the word: NONE
+Do not output anything else.
 
 User Message: "${userMessage}"`;
 
@@ -182,10 +186,12 @@ User Message: "${userMessage}"`;
       [{ role: 'user', content: prompt }],
       null,
       'cascade',
-      'You extract facts.'
+      'You are a strict data extractor.'
     );
 
-    if (response.trim().toUpperCase() === 'NONE' || response.trim() === '') {
+    const cleanRes = response.trim().toUpperCase().replace(/[^A-Z]/g, '');
+    
+    if (cleanRes === 'NONE' || cleanRes === 'NOFACTS' || response.trim() === '') {
       return null;
     }
 
