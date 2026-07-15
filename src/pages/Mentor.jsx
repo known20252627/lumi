@@ -285,7 +285,7 @@ STRICT RULE FOR ACTIONS & TASKS:
 
   return (
     <div className="page-container chat-container">
-      <div className="chat-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="chat-header">
         <div>
           <h1>Lumi Mentor</h1>
           <p>Your expert pair programmer (Powered by 6-Layer AI)</p>
