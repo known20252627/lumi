@@ -168,10 +168,14 @@ Here are the user's current tasks in their planner:
 ${taskList}
 ******************************
 
-STRICT RULE FOR TASKS:
+STRICT RULE FOR ACTIONS & TASKS:
 1. If the user EXPLICITLY asks you to "create a task", "add a todo", or "remind me to...", you must output the exact string [ADD_TASK: <Task Description>].
 2. If the user EXPLICITLY asks you to "clear all tasks", "delete my tasks", or "wipe my planner", you must output the exact string [CLEAR_TASKS].
-If the user is just talking or asking questions, DO NOT output any of these commands. Never create or clear tasks automatically unless specifically commanded to.`;
+3. APP LAUNCHER: If the user asks you to "play a song", "play a trailer", or "open an app", you must figure out the correct native app Deep Link URI and output exactly [OPEN_APP: <URI>]. 
+   - For Spotify: Use \`spotify:search:<query>\`
+   - For YouTube: Use \`vnd.youtube://results?search_query=<query>\`
+   - For regular web searches: Use \`https://www.google.com/search?q=<query>\`
+If the user is just talking or asking questions, DO NOT output any of these commands. Never create tasks or open apps automatically unless specifically commanded to.`;
 
       let responseText = await generateAIResponse(
         newMessages, 
@@ -184,6 +188,19 @@ If the user is just talking or asking questions, DO NOT output any of these comm
       let match;
       let taskAdded = false;
       let tasksCleared = false;
+      let appOpened = false;
+      
+      // Handle Open App Command
+      const appRegex = /\[OPEN_APP:\s*(.+?)\]/i;
+      const appMatch = responseText.match(appRegex);
+      if (appMatch && appMatch[1]) {
+        const urlToOpen = appMatch[1].trim();
+        // Use window.location.href instead of window.open('_blank') to force 
+        // the mobile OS to intercept the deep link directly.
+        window.location.href = urlToOpen;
+        responseText = responseText.replace(appRegex, '').trim();
+        appOpened = true;
+      }
       
       // Handle Clear Tasks Command
       if (responseText.includes('[CLEAR_TASKS]')) {
@@ -211,6 +228,9 @@ If the user is just talking or asking questions, DO NOT output any of these comm
       }
       if (tasksCleared) {
         responseText += '\n\n*(🗑️ All tasks successfully cleared from your Planner)*';
+      }
+      if (appOpened) {
+        responseText += '\n\n*(🚀 Launching App...)*';
       }
 
       const finalMessages = [...newMessages, { role: 'assistant', content: responseText }];
