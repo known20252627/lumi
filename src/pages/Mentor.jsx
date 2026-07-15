@@ -169,15 +169,12 @@ ${taskList}
 ******************************
 
 STRICT RULE FOR ACTIONS & TASKS:
-You have the physical ability to launch native apps on the user's device!
 1. APP LAUNCHER: If the user asks you to play a song, play a trailer, search for a video, or open an app, you MUST output the EXACT string [OPEN_APP: <URI>] anywhere in your response.
-   - For Spotify / Music requests: You MUST use the native deep link format: \`[OPEN_APP: spotify:search:<query>]\`
+   - For Spotify / Music requests: You MUST use the standard web format: \`[OPEN_APP: https://open.spotify.com/search/<query>]\`
    - For YouTube / Video requests: You MUST use the standard web format: \`[OPEN_APP: https://www.youtube.com/results?search_query=<query>]\`
    - For Google / Web searches: You MUST use the standard web format: \`[OPEN_APP: https://www.google.com/search?q=<query>]\`
 2. If the user EXPLICITLY asks you to "create a task", "add a todo", or "remind me to...", you must output the exact string [ADD_TASK: <Task Description>].
-3. If the user EXPLICITLY asks you to "clear all tasks", "delete my tasks", or "wipe my planner", you must output the exact string [CLEAR_TASKS].
-
-CRITICAL: If the user asks you to play a video or a song, DO NOT just say "I can't do that" or "Sure, here is a link." You MUST output the [OPEN_APP: <URI>] command so the system can launch it for them automatically!`;
+3. If the user EXPLICITLY asks you to "clear all tasks", "delete my tasks", or "wipe my planner", you must output the exact string [CLEAR_TASKS].`;
 
       let responseText = await generateAIResponse(
         newMessages, 
@@ -195,21 +192,12 @@ CRITICAL: If the user asks you to play a video or a song, DO NOT just say "I can
       // Handle Open App Command
       const appRegex = /\[OPEN_APP:\s*(.+?)\]/i;
       const appMatch = responseText.match(appRegex);
-      let appLink = null;
       if (appMatch && appMatch[1]) {
         const urlToOpen = appMatch[1].trim();
-        
-        if (urlToOpen.startsWith('http')) {
-          // Standard website: Open automatically in a new tab
-          window.open(urlToOpen, '_blank');
-          appOpened = true;
-        } else {
-          // Native Deep Link: Browser blocks this asynchronously on PC. 
-          // We must render a physical button for the user to click.
-          appLink = urlToOpen;
-        }
-        
+        // Standard website: Open automatically in a new tab
+        window.open(urlToOpen, '_blank');
         responseText = responseText.replace(appRegex, '').trim();
+        appOpened = true;
       }
       
       // Handle Clear Tasks Command
@@ -243,7 +231,7 @@ CRITICAL: If the user asks you to play a video or a song, DO NOT just say "I can
         responseText += '\n\n*(🚀 Launching Website automatically...)*';
       }
 
-      const finalMessages = [...newMessages, { role: 'assistant', content: responseText, appLink: appLink }];
+      const finalMessages = [...newMessages, { role: 'assistant', content: responseText }];
       setMessages(finalMessages);
       
       saveChatSession(finalMessages[1]?.content?.substring(0, 30) + '...', finalMessages);
@@ -348,16 +336,6 @@ CRITICAL: If the user asks you to play a video or a song, DO NOT just say "I can
             </div>
             <div className="message-bubble markdown-body" style={{ position: 'relative' }}>
               <ReactMarkdown>{msg.content}</ReactMarkdown>
-              {msg.appLink && (
-                <a href={msg.appLink} target="_blank" rel="noopener noreferrer" style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                  marginTop: '12px', padding: '12px', background: 'var(--primary)', 
-                  color: 'white', borderRadius: 'var(--radius-md)', fontWeight: 'bold',
-                  textDecoration: 'none', boxShadow: 'var(--shadow-glow)', border: '1px solid #d946ef'
-                }}>
-                  ▶️ CLICK TO OPEN NATIVE APP
-                </a>
-              )}
               {msg.role === 'assistant' && (
                 <button 
                   className="copy-btn" 
