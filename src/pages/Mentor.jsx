@@ -410,7 +410,7 @@ STRICT RULE FOR ACTIONS & TASKS:
           <h1>Lumi Mentor</h1>
           <p>Your expert pair programmer (Powered by 6-Layer AI)</p>
         </div>
-        <div className="model-selector">
+        <div className="model-selector" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <select 
             value={selectedProvider} 
             onChange={(e) => setSelectedProvider(e.target.value)}

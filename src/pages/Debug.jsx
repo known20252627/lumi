@@ -165,7 +165,7 @@ const Debug = () => {
             <p>Elite Coding Specialist - Zero Fluff</p>
           </div>
         </div>
-        <div className="model-selector">
+        <div className="model-selector" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <select 
             value={selectedProvider} 
             onChange={(e) => setSelectedProvider(e.target.value)}
