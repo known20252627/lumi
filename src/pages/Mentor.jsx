@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Mic, MicOff, Bot, User, Volume2, VolumeX, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { useLocation } from 'react-router-dom';
 import { generateAIResponse, extractPersonalMemory } from '../services/ai';
 import { saveChatSession } from '../services/memory';
+import { getProjects } from '../services/ProjectService';
 import './Mentor.css';
 
 const Mentor = () => {
@@ -18,7 +20,10 @@ const Mentor = () => {
   const [selectedProvider, setSelectedProvider] = useState('cascade');
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [memoryNotification, setMemoryNotification] = useState("");
+  const [projects, setProjects] = useState([]);
+  const [linkedProject, setLinkedProject] = useState("");
   
+  const location = useLocation();
   const messagesEndRef = useRef(null);
   const inputRef = useRef('');
   const [recognition, setRecognition] = useState(null);
@@ -75,7 +80,14 @@ const Mentor = () => {
       
       setRecognition(rec);
     }
-  }, []);
+    
+    getProjects().then(data => {
+      setProjects(data || []);
+      if (location.state?.projectId) {
+        setLinkedProject(location.state.projectId);
+      }
+    });
+  }, [location.state]);
 
   const toggleListen = () => {
     if (isListening) {
@@ -136,13 +148,28 @@ const Mentor = () => {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleEdit = (text) => {
+    setInput(text);
+    inputRef.current?.focus();
+  };
 
-    const userMessage = input;
-    const newMessages = [...messages, { role: 'user', content: userMessage }];
-    setMessages(newMessages);
-    setInput('');
+  const handleRegenerate = async (index) => {
+    if (isLoading) return;
+    
+    // We want to regenerate the assistant response at `index`.
+    // That means we take all messages UP TO `index - 1` (which should be the user message),
+    // and re-send.
+    const previousMessages = messages.slice(0, index);
+    const lastUserMessage = previousMessages[previousMessages.length - 1];
+    if (!lastUserMessage || lastUserMessage.role !== 'user') return;
+
+    setMessages(previousMessages);
+    
+    // Now trigger a send with this history
+    await executeSend(lastUserMessage.content, previousMessages);
+  };
+
+  const executeSend = async (userMessage, history) => {
     setIsLoading(true);
     setLoadStatus("Thinking...");
 
@@ -168,6 +195,8 @@ Here are the user's current tasks in their planner:
 ${taskList}
 ******************************
 
+${linkedProject ? `*** LINKED PROJECT CONTEXT ***\nWe are currently discussing the project with ID: ${linkedProject}. Here are its details:\n${JSON.stringify(projects.find(p => p.id === linkedProject) || {})}\n******************************` : ''}
+
 STRICT RULE FOR ACTIONS & TASKS:
 1. APP LAUNCHER: If the user asks you to play a song, play a trailer, search for a video, or open an app, you MUST output the EXACT string [OPEN_APP: <URI>] anywhere in your response.
    - For Spotify / Music requests: You MUST use the standard web format: \`[OPEN_APP: https://open.spotify.com/search/<query>]\`
@@ -176,11 +205,21 @@ STRICT RULE FOR ACTIONS & TASKS:
 2. If the user EXPLICITLY asks you to "create a task", "add a todo", or "remind me to...", you must output the exact string [ADD_TASK: <Task Description>].
 3. If the user EXPLICITLY asks you to "clear all tasks", "delete my tasks", or "wipe my planner", you must output the exact string [CLEAR_TASKS].`;
 
+      const initialMessages = [...history, { role: 'assistant', content: '' }];
+      setMessages(initialMessages);
+
       let responseText = await generateAIResponse(
-        newMessages, 
+        history, 
         (status) => setLoadStatus(status),
         selectedProvider,
-        taskInstruction
+        taskInstruction,
+        (chunk) => {
+          setMessages(prev => {
+            const updated = [...prev];
+            updated[updated.length - 1] = { role: 'assistant', content: chunk };
+            return updated;
+          });
+        }
       );
       
       const taskRegex = /\[ADD_TASK:\s*(.+?)\]/gi;
@@ -230,10 +269,13 @@ STRICT RULE FOR ACTIONS & TASKS:
         // We no longer launch automatically, we use the chip.
       }
 
-      const finalMessages = [...newMessages, { role: 'assistant', content: responseText, appLink: appLinkToOpen }];
-      setMessages(finalMessages);
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { role: 'assistant', content: responseText, appLink: appLinkToOpen };
+        return updated;
+      });
       
-      saveChatSession(finalMessages[1]?.content?.substring(0, 30) + '...', finalMessages);
+      saveChatSession(history[1]?.content?.substring(0, 30) + '...', [...history, { role: 'assistant', content: responseText, appLink: appLinkToOpen }]);
       
       if (isVoiceMode) {
         speakText(responseText);
@@ -272,7 +314,7 @@ STRICT RULE FOR ACTIONS & TASKS:
       }, 100);
       
     } catch (error) {
-      setMessages([...newMessages, { 
+      setMessages([...history, { 
         role: 'assistant', 
         content: `❌ Error: ${error.message}` 
       }]);
@@ -280,6 +322,17 @@ STRICT RULE FOR ACTIONS & TASKS:
       setIsLoading(false);
       setLoadStatus("");
     }
+  };
+
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
+
+    const userMessage = input;
+    const newMessages = [...messages, { role: 'user', content: userMessage }];
+    setMessages(newMessages);
+    setInput('');
+    
+    await executeSend(userMessage, newMessages);
   };
 
   return (
@@ -309,6 +362,24 @@ STRICT RULE FOR ACTIONS & TASKS:
             <option value="groq" style={{ background: '#1e1e24' }}>Groq (Llama-3)</option>
             <option value="sarvam" style={{ background: '#1e1e24' }}>Sarvam</option>
             <option value="local" style={{ background: '#1e1e24' }}>Local WebLLM (100% Offline)</option>
+          </select>
+          <select 
+            value={linkedProject}
+            onChange={(e) => setLinkedProject(e.target.value)}
+            style={{
+              padding: '0.5rem',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-light)',
+              cursor: 'pointer',
+              marginLeft: '0.5rem'
+            }}
+          >
+            <option value="" style={{ background: '#1e1e24' }}>-- No Project Linked --</option>
+            {projects.map(p => (
+              <option key={p.id} value={p.id} style={{ background: '#1e1e24' }}>{p.name}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -342,19 +413,37 @@ STRICT RULE FOR ACTIONS & TASKS:
                   </a>
                 </div>
               )}
-              {msg.role === 'assistant' && (
+              {msg.role === 'assistant' ? (
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  <button 
+                    className="copy-btn" 
+                    onClick={() => handleCopy(msg.content, index)}
+                    title="Copy message"
+                  >
+                    {copiedIndex === index ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                  </button>
+                  <button 
+                    className="copy-btn" 
+                    onClick={() => handleRegenerate(index)}
+                    title="Regenerate response"
+                  >
+                    Regenerate
+                  </button>
+                </div>
+              ) : (
                 <button 
                   className="copy-btn" 
-                  onClick={() => handleCopy(msg.content, index)}
-                  title="Copy message"
+                  onClick={() => handleEdit(msg.content)}
+                  title="Edit message"
+                  style={{ marginTop: '0.5rem' }}
                 >
-                  {copiedIndex === index ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                  Edit
                 </button>
               )}
             </div>
           </div>
         ))}
-        {isLoading && (
+        {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
           <div className="message-wrapper assistant">
             <div className="avatar"><Bot size={20} /></div>
             <div className="message-bubble loading-bubble">

@@ -1,6 +1,6 @@
 import * as webllm from '@mlc-ai/web-llm';
 
-export const generateAIResponse = async (messages, progressCallback = null, selectedProvider = 'cascade', systemPrompt = "You are Lumi, a highly expert AI mentor.") => {
+export const generateAIResponse = async (messages, progressCallback = null, selectedProvider = 'cascade', systemPrompt = "You are Lumi, a highly expert AI mentor.", onChunk = null) => {
   const keys = {
     openai: (localStorage.getItem('lumi_openai_key') || '').trim(),
     gemini: (localStorage.getItem('lumi_api_key') || '').trim(),
@@ -10,32 +10,32 @@ export const generateAIResponse = async (messages, progressCallback = null, sele
   };
 
   // If a specific provider is requested, only try that one.
-  if (selectedProvider === 'openai' && keys.openai) return await fetchOpenAI(messages, keys.openai, systemPrompt);
-  if (selectedProvider === 'gemini' && keys.gemini) return await fetchGemini(messages, keys.gemini, systemPrompt);
-  if (selectedProvider === 'groq' && keys.groq) return await fetchGroq(messages, keys.groq, systemPrompt);
-  if (selectedProvider === 'cerebras' && keys.cerebras) return await fetchCerebras(messages, keys.cerebras, systemPrompt);
-  if (selectedProvider === 'sarvam' && keys.sarvam) return await fetchSarvam(messages, keys.sarvam, systemPrompt);
-  if (selectedProvider === 'local') return await runLocalWebLLM(messages, progressCallback, systemPrompt);
+  if (selectedProvider === 'openai' && keys.openai) return await fetchOpenAICompatibleStream("/api/openai/v1/chat/completions", keys.openai, "gpt-4o", messages, systemPrompt, onChunk, 'openai');
+  if (selectedProvider === 'gemini' && keys.gemini) return await fetchGemini(messages, keys.gemini, systemPrompt); // Gemini streaming unsupported here for now
+  if (selectedProvider === 'groq' && keys.groq) return await fetchOpenAICompatibleStream("/api/groq/openai/v1/chat/completions", keys.groq, "llama-3.1-8b-instant", messages, systemPrompt, onChunk, 'groq');
+  if (selectedProvider === 'cerebras' && keys.cerebras) return await fetchOpenAICompatibleStream("/api/cerebras/v1/chat/completions", keys.cerebras, "llama3.1-8b", messages, systemPrompt, onChunk, 'cerebras');
+  if (selectedProvider === 'sarvam' && keys.sarvam) return await fetchOpenAICompatibleStream("/api/sarvam/v1/chat/completions", keys.sarvam, "sarvam-30b", messages, systemPrompt, onChunk, 'sarvam');
+  if (selectedProvider === 'local') return await runLocalWebLLM(messages, progressCallback, systemPrompt, onChunk);
 
   // Otherwise, run the Cascade
   if (keys.openai) {
-    try { return await fetchOpenAI(messages, keys.openai, systemPrompt); } catch (e) { console.warn("OpenAI Failed", e); }
+    try { return await fetchOpenAICompatibleStream("/api/openai/v1/chat/completions", keys.openai, "gpt-4o", messages, systemPrompt, onChunk, 'openai'); } catch (e) { console.warn("OpenAI Failed", e); }
   }
   if (keys.cerebras) {
-    try { return await fetchCerebras(messages, keys.cerebras, systemPrompt); } catch (e) { console.warn("Cerebras Failed", e); }
+    try { return await fetchOpenAICompatibleStream("/api/cerebras/v1/chat/completions", keys.cerebras, "llama3.1-8b", messages, systemPrompt, onChunk, 'cerebras'); } catch (e) { console.warn("Cerebras Failed", e); }
   }
   if (keys.gemini) {
     try { return await fetchGemini(messages, keys.gemini, systemPrompt); } catch (e) { console.warn("Gemini Failed", e); }
   }
   if (keys.groq) {
-    try { return await fetchGroq(messages, keys.groq, systemPrompt); } catch (e) { console.warn("Groq Failed", e); }
+    try { return await fetchOpenAICompatibleStream("/api/groq/openai/v1/chat/completions", keys.groq, "llama-3.1-8b-instant", messages, systemPrompt, onChunk, 'groq'); } catch (e) { console.warn("Groq Failed", e); }
   }
   if (keys.sarvam) {
-    try { return await fetchSarvam(messages, keys.sarvam, systemPrompt); } catch (e) { console.warn("Sarvam Failed", e); }
+    try { return await fetchOpenAICompatibleStream("/api/sarvam/v1/chat/completions", keys.sarvam, "sarvam-30b", messages, systemPrompt, onChunk, 'sarvam'); } catch (e) { console.warn("Sarvam Failed", e); }
   }
 
   // Fallback
-  return await runLocalWebLLM(messages, progressCallback, systemPrompt);
+  return await runLocalWebLLM(messages, progressCallback, systemPrompt, onChunk);
 };
 
 const recordUsage = (provider, tokens) => {
@@ -51,36 +51,55 @@ const recordUsage = (provider, tokens) => {
   }
 };
 
-const fetchOpenAI = async (messages, apiKey, systemPrompt) => {
+const fetchOpenAICompatibleStream = async (url, apiKey, model, messages, systemPrompt, onChunk, provider) => {
   const formatted = [{ role: 'system', content: systemPrompt }, ...messages];
-  const response = await fetch("/api/openai/v1/chat/completions", {
+  const response = await fetch(url, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: "gpt-4o", messages: formatted, temperature: 0.7 })
+    body: JSON.stringify({ model, messages: formatted, temperature: 0.7, stream: !!onChunk })
   });
-  if (!response.ok) {
-    const err = await response.json().catch(()=>({}));
-    throw new Error(err.error?.message || err.message || JSON.stringify(err));
-  }
-  const data = await response.json();
-  recordUsage('openai', data.usage?.total_tokens);
-  return data.choices[0].message.content;
-};
 
-const fetchCerebras = async (messages, apiKey, systemPrompt) => {
-  const formatted = [{ role: 'system', content: systemPrompt }, ...messages];
-  const response = await fetch("/api/cerebras/v1/chat/completions", {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: "gpt-oss-120b", messages: formatted, temperature: 0.7 })
-  });
   if (!response.ok) {
     const err = await response.json().catch(()=>({}));
     throw new Error(err.error?.message || err.message || JSON.stringify(err));
   }
-  const data = await response.json();
-  recordUsage('cerebras', data.usage?.total_tokens);
-  return data.choices[0].message.content;
+
+  if (!onChunk) {
+    const data = await response.json();
+    recordUsage(provider, data.usage?.total_tokens);
+    return data.choices[0].message.content;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let fullText = "";
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop(); // keep incomplete chunk
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      if (trimmed === 'data: [DONE]') return fullText;
+      if (trimmed.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(trimmed.slice(6));
+          if (data.choices && data.choices[0].delta?.content) {
+            fullText += data.choices[0].delta.content;
+            onChunk(fullText);
+          }
+        } catch (e) {
+          // Ignore partial parse failures
+        }
+      }
+    }
+  }
+  return fullText;
 };
 
 const fetchGemini = async (messages, apiKey, systemPrompt) => {
@@ -103,43 +122,12 @@ const fetchGemini = async (messages, apiKey, systemPrompt) => {
   return data.candidates[0].content.parts[0].text;
 };
 
-const fetchGroq = async (messages, apiKey, systemPrompt) => {
-  const formatted = [{ role: 'system', content: systemPrompt }, ...messages];
-  const response = await fetch("/api/groq/openai/v1/chat/completions", {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: "llama-3.1-8b-instant", messages: formatted, temperature: 0.7 })
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(()=>({}));
-    throw new Error(err.error?.message || err.message || JSON.stringify(err));
-  }
-  const data = await response.json();
-  recordUsage('groq', data.usage?.total_tokens);
-  return data.choices[0].message.content;
-};
-
-const fetchSarvam = async (messages, apiKey, systemPrompt) => {
-  const formatted = [{ role: 'system', content: systemPrompt }, ...messages];
-  const response = await fetch("/api/sarvam/v1/chat/completions", {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: "sarvam-30b", messages: formatted, temperature: 0.7 })
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(()=>({}));
-    throw new Error(err.error?.message || err.message || JSON.stringify(err));
-  }
-  const data = await response.json();
-  recordUsage('sarvam', data.usage?.total_tokens);
-  return data.choices[0].message.content;
-};
 
 // --- LOCAL WEBLLM ---
 
 let localEngine = null;
 
-const runLocalWebLLM = async (messages, progressCallback, systemPrompt) => {
+const runLocalWebLLM = async (messages, progressCallback, systemPrompt, onChunk) => {
   try {
     if (!localEngine) {
       if (progressCallback) progressCallback("Initializing Local Engine...");
@@ -156,11 +144,24 @@ const runLocalWebLLM = async (messages, progressCallback, systemPrompt) => {
     if (progressCallback) progressCallback("Running Locally...");
     
     const formatted = [{ role: 'system', content: systemPrompt }, ...messages];
-    const reply = await localEngine.chat.completions.create({ messages: formatted });
     
-    if (progressCallback) progressCallback(""); 
-    recordUsage('local', reply.usage?.total_tokens);
-    return reply.choices[0].message.content;
+    if (onChunk) {
+      const reply = await localEngine.chat.completions.create({ messages: formatted, stream: true });
+      let fullText = "";
+      if (progressCallback) progressCallback(""); 
+      for await (const chunk of reply) {
+        if (chunk.choices[0]?.delta?.content) {
+           fullText += chunk.choices[0].delta.content;
+           onChunk(fullText);
+        }
+      }
+      return fullText;
+    } else {
+      const reply = await localEngine.chat.completions.create({ messages: formatted });
+      if (progressCallback) progressCallback(""); 
+      recordUsage('local', reply.usage?.total_tokens);
+      return reply.choices[0].message.content;
+    }
   } catch (e) {
     if (e.message.includes("valid external Instance reference no longer exists")) {
       throw new Error("WebGPU Context Crashed (Common during development). Please press F5 to refresh the page and try again.");

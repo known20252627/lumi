@@ -43,6 +43,28 @@
   --transition-normal: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+body.light-theme {
+  --bg-base: #f8fafc;
+  
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  
+  --border-color: rgba(0, 0, 0, 0.1);
+  --border-highlight: rgba(0, 0, 0, 0.15);
+  --border-light: rgba(0, 0, 0, 0.05);
+  
+  --bg-surface: rgba(255, 255, 255, 0.8);
+  --bg-surface-hover: rgba(255, 255, 255, 0.95);
+  
+  --shadow-glass: 0 10px 30px -10px rgba(0, 0, 0, 0.1), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+  
+  --accent-primary: #6366f1;
+  --accent-primary-hover: #4f46e5;
+  --accent-secondary: #db2777;
+  --accent-tertiary: #0d9488;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -73,7 +95,7 @@ body {
 
 /* Glassmorphism Utilities - Apple Vision Pro Level */
 .glass-panel {
-  background: rgba(15, 18, 25, 0.4);
+  background: var(--bg-surface);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border-color);
@@ -86,7 +108,7 @@ body {
 
 /* Premium Typography for Headers */
 h1, h2 {
-  background: linear-gradient(135deg, #ffffff 30%, #a5b4fc 100%);
+  background: linear-gradient(135deg, var(--text-primary) 30%, var(--accent-primary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -0.02em;
@@ -303,22 +325,22 @@ input:focus, textarea:focus, select:focus {
 .markdown-body p:last-child { margin-bottom: 0; }
 
 .markdown-body code {
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(128, 128, 128, 0.2);
   padding: 0.2rem 0.5rem;
   border-radius: 6px;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.85em;
-  color: #c7d2fe;
-  border: 1px solid rgba(255,255,255,0.05);
+  color: var(--accent-primary);
+  border: 1px solid var(--border-light);
 }
 
 .markdown-body pre {
-  background: #090a0f;
+  background: rgba(0, 0, 0, 0.8);
   padding: 1.5rem;
   border-radius: var(--radius-md);
   overflow-x: auto;
   margin: 1.5rem 0;
-  border: 1px solid rgba(255,255,255,0.05);
+  border: 1px solid var(--border-color);
   box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
 }
 
@@ -338,6 +360,5 @@ input:focus, textarea:focus, select:focus {
 
 .markdown-body strong {
   font-weight: 600;
-  color: #fff;
-  text-shadow: 0 0 10px rgba(255,255,255,0.3);
+  color: var(--text-primary);
 }

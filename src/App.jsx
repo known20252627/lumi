@@ -9,6 +9,8 @@ import History from './pages/History';
 import Planner from './pages/Planner';
 import Settings from './pages/Settings';
 import About from './pages/About';
+import CommandPalette from './components/CommandPalette';
+import OnboardingModal from './components/OnboardingModal';
 import './App.css';
 
 function App() {
@@ -16,6 +18,8 @@ function App() {
 
   return (
     <div className="app-container">
+      <OnboardingModal />
+      <CommandPalette />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
       <main className="main-content">

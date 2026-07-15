@@ -150,6 +150,43 @@ const Dashboard = () => {
       </div>
 
       <h2 className="section-title" style={{ marginTop: '2rem' }}>5-Layer AI Usage</h2>
+      
+      {totalTokens > 0 && (
+        <div className="glass-panel" style={{ padding: '2rem', marginBottom: '1.5rem' }}>
+          <h3 style={{ margin: '0 0 1.5rem 0', fontSize: '1rem', color: 'var(--text-secondary)' }}>Token Usage by Provider</h3>
+          <div style={{ display: 'flex', alignItems: 'flex-end', height: '150px', gap: '1rem' }}>
+            {['openai', 'gemini', 'cerebras', 'groq', 'sarvam', 'local'].map(provider => {
+              const val = stats[provider] || 0;
+              const maxVal = Math.max(...Object.values(stats)) || 1;
+              const heightPct = Math.max((val / maxVal) * 100, 2); // min 2% for visibility
+              const colors = {
+                openai: '#3b82f6', gemini: '#eab308', cerebras: '#f97316', 
+                groq: '#ef4444', sarvam: '#a855f7', local: '#10b981'
+              };
+              
+              return (
+                <div key={provider} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    {val > 0 ? (val > 1000 ? (val/1000).toFixed(1) + 'k' : val) : '0'}
+                  </span>
+                  <div style={{ 
+                    width: '100%', 
+                    maxWidth: '40px', 
+                    height: `${heightPct}%`, 
+                    background: `linear-gradient(to top, ${colors[provider]}88, ${colors[provider]})`,
+                    borderRadius: '4px 4px 0 0',
+                    transition: 'height 0.5s ease'
+                  }}></div>
+                  <span style={{ fontSize: '0.75rem', textTransform: 'capitalize', color: 'var(--text-secondary)' }}>
+                    {provider}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="usage-grid">
         
         <div className="usage-card glass-panel">

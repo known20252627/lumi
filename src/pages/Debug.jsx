@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, User, Code, AlertTriangle } from 'lucide-react';
+import { Bot, User, Code, AlertTriangle, Paperclip } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { useLocation } from 'react-router-dom';
 import { generateAIResponse } from '../services/ai';
 import { saveChatSession } from '../services/memory';
+import { getProjects } from '../services/ProjectService';
 import './Debug.css';
 
-const SYSTEM_PROMPT = "You are an elite Staff Software Engineer. Your only goal is to find bugs and output raw, fixed code without conversational fluff. Do not say hello or provide long explanations unless asked. Just output the corrected code.";
+const SYSTEM_PROMPT = "You are an elite Staff Software Engineer. Your only goal is to find bugs and output raw, fixed code without conversational fluff. Do not say hello or provide long explanations unless asked. Just output the corrected code. When making small changes to existing code, format your response as a ```diff block showing additions with + and deletions with -.";
 
 const Debug = () => {
   const [messages, setMessages] = useState([
@@ -15,6 +17,10 @@ const Debug = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [loadStatus, setLoadStatus] = useState("");
   const [selectedProvider, setSelectedProvider] = useState('cascade');
+  const [projects, setProjects] = useState([]);
+  const [linkedProject, setLinkedProject] = useState("");
+  
+  const location = useLocation();
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -25,6 +31,68 @@ const Debug = () => {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    getProjects().then(data => {
+      setProjects(data || []);
+      if (location.state?.projectId) {
+        setLinkedProject(location.state.projectId);
+      }
+    });
+  }, [location.state]);
+
+  const handleEdit = (text) => {
+    setInput(text);
+  };
+
+  const handleRegenerate = async (index) => {
+    if (isLoading) return;
+    const previousMessages = messages.slice(0, index);
+    const lastUserMessage = previousMessages[previousMessages.length - 1];
+    if (!lastUserMessage || lastUserMessage.role !== 'user') return;
+    setMessages(previousMessages);
+    await executeSend(previousMessages);
+  };
+
+  const executeSend = async (history) => {
+    setIsLoading(true);
+    setLoadStatus("Analyzing Stack Trace...");
+
+    try {
+      const initialMessages = [...history, { role: 'assistant', content: '' }];
+      setMessages(initialMessages);
+
+      const enhancedPrompt = SYSTEM_PROMPT + (linkedProject ? `\n\n*** LINKED PROJECT CONTEXT ***\nWe are currently discussing the project with ID: ${linkedProject}. Here are its details:\n${JSON.stringify(projects.find(p => p.id === linkedProject) || {})}\n******************************` : '');
+
+      let responseText = await generateAIResponse(
+        history, 
+        (status) => setLoadStatus(status),
+        selectedProvider,
+        enhancedPrompt,
+        (chunk) => {
+          setMessages(prev => {
+            const updated = [...prev];
+            updated[updated.length - 1] = { role: 'assistant', content: chunk };
+            return updated;
+          });
+        }
+      );
+      
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { role: 'assistant', content: responseText };
+        return updated;
+      });
+      
+      saveChatSession("Debug: " + history[1]?.content?.substring(0, 20) + '...', [...history, { role: 'assistant', content: responseText }]);
+      
+    } catch (error) {
+      setMessages([...history, { role: 'assistant', content: `❌ Error: ${error.message}` }]);
+    } finally {
+      setIsLoading(false);
+      setLoadStatus("");
+    }
+  };
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -32,28 +100,8 @@ const Debug = () => {
     const newMessages = [...messages, { role: 'user', content: userMessage }];
     setMessages(newMessages);
     setInput('');
-    setIsLoading(true);
-    setLoadStatus("Analyzing Stack Trace...");
-
-    try {
-      const responseText = await generateAIResponse(
-        newMessages, 
-        (status) => setLoadStatus(status),
-        selectedProvider,
-        SYSTEM_PROMPT
-      );
-      
-      const finalMessages = [...newMessages, { role: 'assistant', content: responseText }];
-      setMessages(finalMessages);
-      
-      saveChatSession("Debug: " + finalMessages[1]?.content?.substring(0, 20) + '...', finalMessages);
-      
-    } catch (error) {
-      setMessages([...newMessages, { role: 'assistant', content: `❌ Error: ${error.message}` }]);
-    } finally {
-      setIsLoading(false);
-      setLoadStatus("");
-    }
+    
+    await executeSend(newMessages);
   };
 
   return (
@@ -79,6 +127,24 @@ const Debug = () => {
             <option value="sarvam">Sarvam</option>
             <option value="local">Local WebLLM</option>
           </select>
+          <select 
+            value={linkedProject}
+            onChange={(e) => setLinkedProject(e.target.value)}
+            style={{
+              marginLeft: '0.5rem',
+              padding: '0.4rem',
+              borderRadius: 'var(--radius-sm)',
+              background: 'rgba(0,0,0,0.3)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-color)',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="">-- No Project Linked --</option>
+            {projects.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -91,14 +157,66 @@ const Debug = () => {
               </div>
               <div className="message-content markdown-body">
                 {msg.role === 'assistant' ? (
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  <div>
+                    <ReactMarkdown
+                    components={{
+                      code({node, inline, className, children, ...props}) {
+                        const match = /language-(\w+)/.exec(className || '')
+                        const isDiff = match && match[1] === 'diff'
+                        if (!inline && isDiff) {
+                          const lines = String(children).replace(/\n$/, '').split('\n');
+                          return (
+                            <pre className="diff-viewer" style={{ background: '#0d1117', padding: '1rem', borderRadius: '8px', overflowX: 'auto', border: '1px solid #30363d' }}>
+                              <code style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.9rem' }}>
+                                {lines.map((line, i) => {
+                                  let color = '#c9d1d9';
+                                  let bg = 'transparent';
+                                  if (line.startsWith('+')) { color = '#3fb950'; bg = 'rgba(46,160,67,0.15)'; }
+                                  else if (line.startsWith('-')) { color = '#f85149'; bg = 'rgba(248,81,73,0.15)'; }
+                                  return (
+                                    <div key={i} style={{ color, backgroundColor: bg, padding: '0 4px', whiteSpace: 'pre' }}>
+                                      {line}
+                                    </div>
+                                  );
+                                })}
+                              </code>
+                            </pre>
+                          )
+                        }
+                        return <code className={className} {...props}>{children}</code>
+                      }
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
+                    {index > 0 && (
+                      <button 
+                        className="copy-btn" 
+                        onClick={() => handleRegenerate(index)}
+                        title="Regenerate response"
+                        style={{ marginTop: '0.5rem', background: 'rgba(255,255,255,0.05)', border: 'none', color: 'var(--text-secondary)', padding: '0.2rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                      >
+                        Regenerate
+                      </button>
+                    )}
+                  </div>
                 ) : (
-                  <div>{msg.content}</div>
+                  <div>
+                    {msg.content}
+                    <button 
+                      className="copy-btn" 
+                      onClick={() => handleEdit(msg.content)}
+                      title="Edit message"
+                      style={{ marginTop: '0.5rem', display: 'block', background: 'rgba(255,255,255,0.05)', border: 'none', color: 'var(--text-secondary)', padding: '0.2rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                    >
+                      Edit
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
           ))}
-          {isLoading && (
+          {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
             <div className="debug-message assistant">
               <div className="avatar"><Code size={20} /></div>
               <div className="message-content loading">
@@ -109,7 +227,7 @@ const Debug = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="debug-input-area">
+        <div className="debug-input-area" style={{ position: 'relative' }}>
           <textarea 
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -121,6 +239,25 @@ const Debug = () => {
               }
             }}
           />
+          <div style={{ position: 'absolute', bottom: '1.5rem', left: '2.5rem', display: 'flex', gap: '0.5rem' }}>
+            <label className="icon-btn" style={{ cursor: 'pointer', padding: '0.2rem', background: 'transparent' }} title="Attach File">
+              <Paperclip size={18} />
+              <input 
+                type="file" 
+                style={{ display: 'none' }} 
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (ev) => {
+                    setInput(prev => prev + (prev ? '\n\n' : '') + `// File: ${file.name}\n${ev.target.result}`);
+                  };
+                  reader.readAsText(file);
+                  e.target.value = '';
+                }} 
+              />
+            </label>
+          </div>
           <button className="btn-primary" onClick={handleSend} disabled={isLoading}>
             {isLoading ? "Debugging..." : "Fix Code (Enter)"}
           </button>
