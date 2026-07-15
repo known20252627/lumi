@@ -2,19 +2,19 @@ import * as webllm from '@mlc-ai/web-llm';
 
 export const generateAIResponse = async (messages, progressCallback = null, selectedProvider = 'cascade', systemPrompt = "You are Lumi, a highly expert AI mentor.") => {
   const keys = {
-    openai: localStorage.getItem('lumi_openai_key'),
-    gemini: localStorage.getItem('lumi_api_key'),
-    groq: localStorage.getItem('lumi_groq_key'),
-    cerebras: localStorage.getItem('lumi_cerebras_key'),
-    sarvam: localStorage.getItem('lumi_sarvam_key')
+    openai: (localStorage.getItem('lumi_openai_key') || '').trim(),
+    gemini: (localStorage.getItem('lumi_api_key') || '').trim(),
+    groq: (localStorage.getItem('lumi_groq_key') || '').trim(),
+    cerebras: (localStorage.getItem('lumi_cerebras_key') || '').trim(),
+    sarvam: (localStorage.getItem('lumi_sarvam_key') || '').trim()
   };
 
   // If a specific provider is requested, only try that one.
-  if (selectedProvider === 'openai') return await fetchOpenAI(messages, keys.openai, systemPrompt);
-  if (selectedProvider === 'gemini') return await fetchGemini(messages, keys.gemini, systemPrompt);
-  if (selectedProvider === 'groq') return await fetchGroq(messages, keys.groq, systemPrompt);
-  if (selectedProvider === 'cerebras') return await fetchCerebras(messages, keys.cerebras, systemPrompt);
-  if (selectedProvider === 'sarvam') return await fetchSarvam(messages, keys.sarvam, systemPrompt);
+  if (selectedProvider === 'openai' && keys.openai) return await fetchOpenAI(messages, keys.openai, systemPrompt);
+  if (selectedProvider === 'gemini' && keys.gemini) return await fetchGemini(messages, keys.gemini, systemPrompt);
+  if (selectedProvider === 'groq' && keys.groq) return await fetchGroq(messages, keys.groq, systemPrompt);
+  if (selectedProvider === 'cerebras' && keys.cerebras) return await fetchCerebras(messages, keys.cerebras, systemPrompt);
+  if (selectedProvider === 'sarvam' && keys.sarvam) return await fetchSarvam(messages, keys.sarvam, systemPrompt);
   if (selectedProvider === 'local') return await runLocalWebLLM(messages, progressCallback, systemPrompt);
 
   // Otherwise, run the Cascade
@@ -121,7 +121,7 @@ const fetchGroq = async (messages, apiKey, systemPrompt) => {
 
 const fetchSarvam = async (messages, apiKey, systemPrompt) => {
   const formatted = [{ role: 'system', content: systemPrompt }, ...messages];
-  const response = await fetch("/api/sarvam/chat/completions", {
+  const response = await fetch("/api/sarvam/v1/chat/completions", {
     method: 'POST',
     headers: { 'api-subscription-key': apiKey, 'Content-Type': 'application/json' },
     body: JSON.stringify({ model: "sarvam-2b-v0.5", messages: formatted, temperature: 0.7 })
