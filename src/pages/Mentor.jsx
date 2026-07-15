@@ -171,9 +171,8 @@ ${taskList}
 STRICT RULE FOR ACTIONS & TASKS:
 You have the physical ability to launch native apps on the user's device!
 1. APP LAUNCHER: If the user asks you to play a song, play a trailer, search for a video, or open an app, you MUST output the EXACT string [OPEN_APP: <URI>] anywhere in your response.
-   - For Spotify requests: You MUST output \`[OPEN_APP: spotify:search:<query>]\`
-   - For YouTube/Video requests: You MUST output \`[OPEN_APP: vnd.youtube://results?search_query=<query>]\`
-   - For Google searches: You MUST output \`[OPEN_APP: https://www.google.com/search?q=<query>]\`
+   - For PC/Mobile Native Apps (e.g. Spotify): Output a deep link like [OPEN_APP: spotify:search:<query>]
+   - For Websites (e.g. YouTube, Google): Output a standard web link like [OPEN_APP: https://www.youtube.com/results?search_query=<query>]
 2. If the user EXPLICITLY asks you to "create a task", "add a todo", or "remind me to...", you must output the exact string [ADD_TASK: <Task Description>].
 3. If the user EXPLICITLY asks you to "clear all tasks", "delete my tasks", or "wipe my planner", you must output the exact string [CLEAR_TASKS].
 
@@ -197,9 +196,19 @@ CRITICAL: If the user asks you to play a video or a song, DO NOT just say "I can
       const appMatch = responseText.match(appRegex);
       if (appMatch && appMatch[1]) {
         const urlToOpen = appMatch[1].trim();
-        // Use window.location.href instead of window.open('_blank') to force 
-        // the mobile OS to intercept the deep link directly.
-        window.location.href = urlToOpen;
+        
+        if (urlToOpen.startsWith('http')) {
+          // Standard website: Open in a new tab
+          window.open(urlToOpen, '_blank');
+        } else {
+          // Native Deep Link: Use an invisible iframe to force the OS to open it without leaving the page
+          const iframe = document.createElement('iframe');
+          iframe.style.display = 'none';
+          iframe.src = urlToOpen;
+          document.body.appendChild(iframe);
+          setTimeout(() => document.body.removeChild(iframe), 3000);
+        }
+        
         responseText = responseText.replace(appRegex, '').trim();
         appOpened = true;
       }
