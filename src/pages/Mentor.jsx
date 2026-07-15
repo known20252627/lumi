@@ -169,13 +169,15 @@ ${taskList}
 ******************************
 
 STRICT RULE FOR ACTIONS & TASKS:
-1. If the user EXPLICITLY asks you to "create a task", "add a todo", or "remind me to...", you must output the exact string [ADD_TASK: <Task Description>].
-2. If the user EXPLICITLY asks you to "clear all tasks", "delete my tasks", or "wipe my planner", you must output the exact string [CLEAR_TASKS].
-3. APP LAUNCHER: If the user asks you to "play a song", "play a trailer", or "open an app", you must figure out the correct native app Deep Link URI and output exactly [OPEN_APP: <URI>]. 
-   - For Spotify: Use \`spotify:search:<query>\`
-   - For YouTube: Use \`vnd.youtube://results?search_query=<query>\`
-   - For regular web searches: Use \`https://www.google.com/search?q=<query>\`
-If the user is just talking or asking questions, DO NOT output any of these commands. Never create tasks or open apps automatically unless specifically commanded to.`;
+You have the physical ability to launch native apps on the user's device!
+1. APP LAUNCHER: If the user asks you to play a song, play a trailer, search for a video, or open an app, you MUST output the EXACT string [OPEN_APP: <URI>] anywhere in your response.
+   - For Spotify requests: You MUST output \`[OPEN_APP: spotify:search:<query>]\`
+   - For YouTube/Video requests: You MUST output \`[OPEN_APP: vnd.youtube://results?search_query=<query>]\`
+   - For Google searches: You MUST output \`[OPEN_APP: https://www.google.com/search?q=<query>]\`
+2. If the user EXPLICITLY asks you to "create a task", "add a todo", or "remind me to...", you must output the exact string [ADD_TASK: <Task Description>].
+3. If the user EXPLICITLY asks you to "clear all tasks", "delete my tasks", or "wipe my planner", you must output the exact string [CLEAR_TASKS].
+
+CRITICAL: If the user asks you to play a video or a song, DO NOT just say "I can't do that" or "Sure, here is a link." You MUST output the [OPEN_APP: <URI>] command so the system can launch it for them automatically!`;
 
       let responseText = await generateAIResponse(
         newMessages, 
