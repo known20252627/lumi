@@ -176,7 +176,7 @@ input:focus, textarea:focus, select:focus {
 /* Layout Utilities */
 .app-container {
   display: flex;
-  height: 100vh;
+  height: 100dvh; /* dvh for mobile */
   overflow: hidden;
 }
 
@@ -210,6 +210,12 @@ input:focus, textarea:focus, select:focus {
   padding: 3rem 2.5rem;
   width: 100%;
   animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: 0.5rem;
+  }
 }
 
 /* Scrollbar - Ultra Minimal */
