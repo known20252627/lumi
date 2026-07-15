@@ -85,7 +85,10 @@ const Debug = () => {
         if (projectScan?.files) {
           projectContextStr += `\nTotal Files: ${projectScan.totalFiles}\nProject contains these files (subset): ${projectScan.files.slice(0, 50).join(', ')}${projectScan.totalFiles > 50 ? '...' : ''}\n`;
           
-          const mentionedFiles = projectScan.files.filter(f => userMessage.includes(f));
+          const mentionedFiles = projectScan.files.filter(f => {
+            const basename = f.replace(/\\/g, '/').split('/').pop();
+            return userMessage.includes(f) || userMessage.includes(basename);
+          });
           if (mentionedFiles.length > 0) {
             setLoadStatus(`Reading ${mentionedFiles.length} file(s)...`);
             const fileContents = await getProjectFiles(linkedProject, mentionedFiles);
