@@ -60,7 +60,7 @@ const fetchOpenAI = async (messages, apiKey, systemPrompt) => {
   });
   if (!response.ok) {
     const err = await response.json().catch(()=>({}));
-    throw new Error(err.error?.message || "OpenAI API Error");
+    throw new Error(err.error?.message || err.message || JSON.stringify(err));
   }
   const data = await response.json();
   recordUsage('openai', data.usage?.total_tokens);
@@ -76,7 +76,7 @@ const fetchCerebras = async (messages, apiKey, systemPrompt) => {
   });
   if (!response.ok) {
     const err = await response.json().catch(()=>({}));
-    throw new Error(err.error?.message || "Cerebras API Error");
+    throw new Error(err.error?.message || err.message || JSON.stringify(err));
   }
   const data = await response.json();
   recordUsage('cerebras', data.usage?.total_tokens);
@@ -96,7 +96,7 @@ const fetchGemini = async (messages, apiKey, systemPrompt) => {
   });
   if (!response.ok) {
     const err = await response.json().catch(()=>({}));
-    throw new Error(err.error?.message || "Gemini API Error");
+    throw new Error(err.error?.message || err.message || JSON.stringify(err));
   }
   const data = await response.json();
   recordUsage('gemini', data.usageMetadata?.totalTokenCount);
@@ -112,7 +112,7 @@ const fetchGroq = async (messages, apiKey, systemPrompt) => {
   });
   if (!response.ok) {
     const err = await response.json().catch(()=>({}));
-    throw new Error(err.error?.message || "Groq API Error");
+    throw new Error(err.error?.message || err.message || JSON.stringify(err));
   }
   const data = await response.json();
   recordUsage('groq', data.usage?.total_tokens);
@@ -123,12 +123,12 @@ const fetchSarvam = async (messages, apiKey, systemPrompt) => {
   const formatted = [{ role: 'system', content: systemPrompt }, ...messages];
   const response = await fetch("/api/sarvam/v1/chat/completions", {
     method: 'POST',
-    headers: { 'api-subscription-key': apiKey, 'Content-Type': 'application/json' },
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ model: "sarvam-2b-v0.5", messages: formatted, temperature: 0.7 })
   });
   if (!response.ok) {
     const err = await response.json().catch(()=>({}));
-    throw new Error(err.message || "Sarvam API Error");
+    throw new Error(err.error?.message || err.message || JSON.stringify(err));
   }
   const data = await response.json();
   recordUsage('sarvam', data.usage?.total_tokens);
