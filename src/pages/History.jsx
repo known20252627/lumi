@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getChatHistory, clearChatHistory } from '../services/memory';
-import { Clock, MessageSquare, Trash2, Search } from 'lucide-react';
+import { Clock, MessageSquare, Trash2, Search, Download, Printer } from 'lucide-react';
 import { useUI } from '../context/UIContext';
 import './History.css';
 
@@ -22,6 +22,26 @@ const History = () => {
       setSelectedSession(null);
       showToast("Memory logs cleared.");
     }
+  };
+
+  const exportCSV = () => {
+    if (!selectedSession) return;
+    let csv = 'Role,Message\n';
+    selectedSession.messages.forEach(msg => {
+      const cleanContent = msg.content.replace(/"/g, '""');
+      csv += `"${msg.role}","${cleanContent}"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Lumi_Session_${new Date(selectedSession.date).getTime()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const printPDF = () => {
+    window.print();
   };
 
   return (
@@ -78,8 +98,16 @@ const History = () => {
       <div className="history-content glass-panel">
         {selectedSession ? (
           <div className="history-messages">
-            <h3>{selectedSession.title}</h3>
-            <p className="session-date">{new Date(selectedSession.date).toLocaleString()}</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <h3>{selectedSession.title}</h3>
+                <p className="session-date">{new Date(selectedSession.date).toLocaleString()}</p>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn-secondary" onClick={exportCSV} title="Export as CSV"><Download size={16} /> CSV</button>
+                <button className="btn-secondary" onClick={printPDF} title="Print / Save as PDF"><Printer size={16} /> PDF</button>
+              </div>
+            </div>
             <hr />
             <div className="messages-list">
               {selectedSession.messages.map((msg, idx) => (

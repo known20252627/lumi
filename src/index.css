@@ -193,10 +193,13 @@ input, textarea, select {
 }
 
 input:focus, textarea:focus, select:focus {
-  outline: none;
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2), inset 0 2px 6px rgba(0,0,0,0.2);
-  background-color: rgba(0, 0, 0, 0.5);
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -1px;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent-secondary);
+  outline-offset: 2px;
 }
 
 .danger {

@@ -4,7 +4,11 @@ import ReactMarkdown from 'react-markdown';
 import { useLocation } from 'react-router-dom';
 import { generateAIResponse, extractPersonalMemory } from '../services/ai';
 import { saveChatSession } from '../services/memory';
-import { getProjects } from '../services/ProjectService';
+import { getProjects, getProjectScan, getProjectFiles } from '../services/ProjectService';
+import { getProjectGitDiff } from '../services/GitService';
+import { searchMemories } from '../services/SearchService';
+import { getAllPersonas } from '../data/personas';
+import { decryptText } from '../services/crypto';
 import './Mentor.css';
 
 const Mentor = () => {
@@ -22,6 +26,10 @@ const Mentor = () => {
   const [memoryNotification, setMemoryNotification] = useState("");
   const [projects, setProjects] = useState([]);
   const [linkedProject, setLinkedProject] = useState("");
+  const [projectScan, setProjectScan] = useState(null);
+  
+  const [allPersonas, setAllPersonas] = useState([]);
+  const [selectedPersona, setSelectedPersona] = useState('default');
   
   const location = useLocation();
   const messagesEndRef = useRef(null);
@@ -41,6 +49,15 @@ const Mentor = () => {
   }, [input]);
 
   useEffect(() => {
+    if (linkedProject) {
+      getProjectScan(linkedProject).then(data => setProjectScan(data));
+    } else {
+      setProjectScan(null);
+    }
+  }, [linkedProject]);
+
+  useEffect(() => {
+    setAllPersonas(getAllPersonas());
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognitionAPI) {
       const rec = new SpeechRecognitionAPI();
@@ -174,9 +191,6 @@ const Mentor = () => {
     setLoadStatus("Thinking...");
 
     try {
-      const rawMem = localStorage.getItem('lumi_personal_memory');
-      const memoryVault = rawMem ? JSON.parse(rawMem) : [];
-
       const rawGoals = localStorage.getItem('lumi_planner_goals');
       const currentTasks = rawGoals ? JSON.parse(rawGoals) : [];
       const taskList = currentTasks.length > 0 
@@ -190,19 +204,66 @@ Here are facts you must permanently remember about the user:
 ${memoryVault.length > 0 ? memoryVault.join('\n') : 'No personal facts known yet.'}
 ******************************
 
+      let projectContextStr = '';
+      if (linkedProject) {
+        const p = projects.find(proj => proj.id === linkedProject) || {};
+        projectContextStr = `*** LINKED PROJECT CONTEXT ***\nProject Name: ${p.name}\nLanguage: ${p.language}\nFramework: ${p.framework}\n`;
+        
+        if (projectScan?.files) {
+          projectContextStr += `\nTotal Files: ${projectScan.totalFiles}\nProject contains these files (subset): ${projectScan.files.slice(0, 50).join(', ')}${projectScan.totalFiles > 50 ? '...' : ''}\n`;
+          
+          // Auto-fetch files mentioned in the prompt
+          const mentionedFiles = projectScan.files.filter(f => userMessage.includes(f));
+          if (mentionedFiles.length > 0) {
+            setLoadStatus(`Reading ${mentionedFiles.length} file(s)...`);
+            const fileContents = await getProjectFiles(linkedProject, mentionedFiles);
+            projectContextStr += `\n--- READ FILES CONTENTS ---\n`;
+            for (const [file, content] of Object.entries(fileContents)) {
+              if (content) {
+                projectContextStr += `\nFile: ${file}\n\`\`\`\n${content}\n\`\`\`\n`;
+              }
+            }
+          }
+        }
+
+        // Auto-fetch Git Diff if asked
+        if (userMessage.toLowerCase().includes('git') || userMessage.toLowerCase().includes('change') || userMessage.toLowerCase().includes('diff')) {
+          setLoadStatus(`Fetching Git diff...`);
+          const gitRes = await getProjectGitDiff(linkedProject);
+          if (gitRes.diff) {
+             projectContextStr += `\n--- GIT UNCOMMITTED CHANGES ---\n\`\`\`diff\n${gitRes.diff}\n\`\`\`\n`;
+          }
+        }
+        
+        projectContextStr += `******************************\n`;
+      }
+
+      const rawMem = localStorage.getItem('lumi_personal_memory');
+      const memoryVault = rawMem ? JSON.parse(rawMem) : [];
+      const relevantMemories = searchMemories(userMessage, memoryVault, 5);
+      
+      const currentPersonaObj = allPersonas.find(p => p.id === selectedPersona) || allPersonas[0];
+
+      const taskInstruction = `${currentPersonaObj.prompt} 
+      
+*** LONG-TERM MEMORY VAULT ***
+Here are the most relevant facts you must remember about the user for this interaction:
+${relevantMemories.length > 0 ? relevantMemories.join('\n') : 'No relevant personal facts for this query.'}
+******************************
+
 *** CURRENT PLANNER TASKS ***
 Here are the user's current tasks in their planner:
 ${taskList}
 ******************************
 
-${linkedProject ? `*** LINKED PROJECT CONTEXT ***\nWe are currently discussing the project with ID: ${linkedProject}. Here are its details:\n${JSON.stringify(projects.find(p => p.id === linkedProject) || {})}\n******************************` : ''}
+${projectContextStr}
 
 STRICT RULE FOR ACTIONS & TASKS:
 1. APP LAUNCHER: If the user asks you to play a song, play a trailer, search for a video, or open an app, you MUST output the EXACT string [OPEN_APP: <URI>] anywhere in your response.
    - For Spotify / Music requests: You MUST use the standard web format: \`[OPEN_APP: https://open.spotify.com/search/<query>]\`
    - For YouTube / Video requests: You MUST use the standard web format: \`[OPEN_APP: https://www.youtube.com/results?search_query=<query>]\`
    - For Google / Web searches: You MUST use the standard web format: \`[OPEN_APP: https://www.google.com/search?q=<query>]\`
-2. If the user EXPLICITLY asks you to "create a task", "add a todo", or "remind me to...", you must output the exact string [ADD_TASK: <Task Description>].
+2. If the user EXPLICITLY asks you to "create a task", "add a todo", or "remind me to...", you must output the exact string [ADD_TASK: <Task Description> | <Priority> | <DueDate>]. Priority should be low, medium, or high (default medium). DueDate should be YYYY-MM-DD if requested, else leave blank (e.g. [ADD_TASK: Fix the bug | high | ]).
 3. If the user EXPLICITLY asks you to "clear all tasks", "delete my tasks", or "wipe my planner", you must output the exact string [CLEAR_TASKS].`;
 
       const initialMessages = [...history, { role: 'assistant', content: '' }];
@@ -247,13 +308,27 @@ STRICT RULE FOR ACTIONS & TASKS:
 
       // Handle Add Task Command
       while ((match = taskRegex.exec(responseText)) !== null) {
-        const taskDesc = match[1].trim();
-        if (taskDesc) {
-          const raw = localStorage.getItem('lumi_planner_goals');
-          const goals = raw ? JSON.parse(raw) : [];
-          goals.push({ id: Date.now().toString() + Math.random(), text: taskDesc, completed: false });
-          localStorage.setItem('lumi_planner_goals', JSON.stringify(goals));
-          taskAdded = true;
+        const fullInner = match[1].trim();
+        if (fullInner) {
+          const parts = fullInner.split('|').map(s => s.trim());
+          const taskDesc = parts[0];
+          const taskPriority = parts[1] ? parts[1].toLowerCase() : 'medium';
+          const taskDueDate = parts[2] ? parts[2] : null;
+          
+          if (taskDesc) {
+            const raw = localStorage.getItem('lumi_planner_goals');
+            const goals = raw ? JSON.parse(raw) : [];
+            goals.push({ 
+              id: Date.now().toString() + Math.random(), 
+              text: taskDesc, 
+              completed: false,
+              priority: ['low', 'medium', 'high'].includes(taskPriority) ? taskPriority : 'medium',
+              dueDate: taskDueDate,
+              createdAt: Date.now()
+            });
+            localStorage.setItem('lumi_planner_goals', JSON.stringify(goals));
+            taskAdded = true;
+          }
         }
       }
       
@@ -295,11 +370,11 @@ STRICT RULE FOR ACTIONS & TASKS:
             // Automatically push new memory to Supabase Cloud
             const { syncKeysToCloud } = await import('../services/supabase.js');
             const keys = {
-              openai: localStorage.getItem('lumi_openai_key'),
-              gemini: localStorage.getItem('lumi_api_key'),
-              groq: localStorage.getItem('lumi_groq_key'),
-              cerebras: localStorage.getItem('lumi_cerebras_key'),
-              sarvam: localStorage.getItem('lumi_sarvam_key')
+              openai: await decryptText(localStorage.getItem('lumi_openai_key')),
+              gemini: await decryptText(localStorage.getItem('lumi_api_key')),
+              groq: await decryptText(localStorage.getItem('lumi_groq_key')),
+              cerebras: await decryptText(localStorage.getItem('lumi_cerebras_key')),
+              sarvam: await decryptText(localStorage.getItem('lumi_sarvam_key'))
             };
             await syncKeysToCloud(keys);
             
@@ -378,6 +453,23 @@ STRICT RULE FOR ACTIONS & TASKS:
           >
             <option value="" style={{ background: '#1e1e24' }}>-- No Project Linked --</option>
             {projects.map(p => (
+              <option key={p.id} value={p.id} style={{ background: '#1e1e24' }}>{p.name}</option>
+            ))}
+          </select>
+          <select 
+            value={selectedPersona}
+            onChange={(e) => setSelectedPersona(e.target.value)}
+            style={{
+              padding: '0.5rem',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-light)',
+              cursor: 'pointer',
+              marginLeft: '0.5rem'
+            }}
+          >
+            {allPersonas.map(p => (
               <option key={p.id} value={p.id} style={{ background: '#1e1e24' }}>{p.name}</option>
             ))}
           </select>

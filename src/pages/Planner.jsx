@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Target, Plus, CheckCircle, Circle, Trash2 } from 'lucide-react';
+import { Target, Plus, CheckCircle, Circle, Trash2, Download, Printer } from 'lucide-react';
 import { useUI } from '../context/UIContext';
 import './Planner.css';
 
@@ -72,6 +72,28 @@ const Planner = () => {
       return (b.createdAt || parseInt(b.id)) - (a.createdAt || parseInt(a.id));
     });
 
+  const exportCSV = () => {
+    let csv = 'Task,Priority,Due Date,Status\n';
+    filteredAndSortedGoals.forEach(g => {
+      const text = g.text.replace(/"/g, '""');
+      const priority = g.priority || 'medium';
+      const due = g.dueDate ? new Date(g.dueDate).toLocaleDateString() : '';
+      const status = g.completed ? 'Completed' : 'Active';
+      csv += `"${text}","${priority}","${due}","${status}"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Lumi_Planner_Tasks_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const printPDF = () => {
+    window.print();
+  };
+
   return (
     <div className="page-container planner-container">
       <div className="planner-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -79,29 +101,35 @@ const Planner = () => {
           <h1><Target size={28} color="#ec4899" /> Feature Planner</h1>
           <p>Track your app ideas, goals, and bugs to fix</p>
         </div>
-        {goals.length > 0 && (
-          <button 
-            onClick={async () => {
-              if (await confirm("Are you sure you want to delete all tasks?")) {
-                saveGoals([]);
-                showToast("All tasks cleared.");
-              }
-            }}
-            style={{
-              padding: '0.5rem 1rem',
-              background: 'rgba(239, 68, 68, 0.1)',
-              color: '#ef4444',
-              border: '1px solid #ef4444',
-              borderRadius: 'var(--radius-md)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}
-          >
-            <Trash2 size={16} /> Clear All
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          {goals.length > 0 && (
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn-secondary" onClick={exportCSV} title="Export Tasks as CSV"><Download size={16} /> CSV</button>
+              <button className="btn-secondary" onClick={printPDF} title="Print / Save as PDF"><Printer size={16} /> PDF</button>
+              <button 
+                onClick={async () => {
+                  if (await confirm("Are you sure you want to delete all tasks?")) {
+                    saveGoals([]);
+                    showToast("All tasks cleared.");
+                  }
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  color: '#ef4444',
+                  border: '1px solid #ef4444',
+                  borderRadius: 'var(--radius-md)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                <Trash2 size={16} /> Clear All
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="planner-content glass-panel">

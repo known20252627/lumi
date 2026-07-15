@@ -1,13 +1,17 @@
 import * as webllm from '@mlc-ai/web-llm';
+import { decryptText } from './crypto';
 
 export const generateAIResponse = async (messages, progressCallback = null, selectedProvider = 'cascade', systemPrompt = "You are Lumi, a highly expert AI mentor.", onChunk = null) => {
+  // Automatically push new memory to Supabase Cloud
+  const { syncKeysToCloud } = await import('../services/supabase.js');
   const keys = {
-    openai: (localStorage.getItem('lumi_openai_key') || '').trim(),
-    gemini: (localStorage.getItem('lumi_api_key') || '').trim(),
-    groq: (localStorage.getItem('lumi_groq_key') || '').trim(),
-    cerebras: (localStorage.getItem('lumi_cerebras_key') || '').trim(),
-    sarvam: (localStorage.getItem('lumi_sarvam_key') || '').trim()
+    openai: (await decryptText(localStorage.getItem('lumi_openai_key')) || '').trim(),
+    gemini: (await decryptText(localStorage.getItem('lumi_api_key')) || '').trim(),
+    groq: (await decryptText(localStorage.getItem('lumi_groq_key')) || '').trim(),
+    cerebras: (await decryptText(localStorage.getItem('lumi_cerebras_key')) || '').trim(),
+    sarvam: (await decryptText(localStorage.getItem('lumi_sarvam_key')) || '').trim()
   };
+  await syncKeysToCloud(keys);
 
   // If a specific provider is requested, only try that one.
   if (selectedProvider === 'openai' && keys.openai) return await fetchOpenAICompatibleStream("/api/openai/v1/chat/completions", keys.openai, "gpt-4o", messages, systemPrompt, onChunk, 'openai');

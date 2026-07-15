@@ -13,6 +13,9 @@ const Dashboard = () => {
   const [importPath, setImportPath] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [dailyTasks, setDailyTasks] = useState([]);
+  const [activeTab, setActiveTab] = useState('overview');
+  
+  const TOKEN_LIMIT = 100000; // 100k free token limit for the demo
 
   const loadStats = () => {
     const raw = localStorage.getItem('lumi_usage_stats');
@@ -71,7 +74,33 @@ const Dashboard = () => {
         <p>Your daily brief, active projects, and usage stats</p>
       </div>
 
-      <div className="dashboard-top-row" style={{ display: 'flex', gap: '2rem', marginTop: '2rem' }}>
+      <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border-light)', marginBottom: '2rem' }}>
+        <button 
+          className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
+          onClick={() => setActiveTab('overview')}
+          style={{ padding: '0.5rem 1rem', background: 'transparent', border: 'none', borderBottom: activeTab === 'overview' ? '2px solid var(--primary)' : '2px solid transparent', color: activeTab === 'overview' ? 'var(--text-primary)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '1.1rem' }}
+        >
+          Overview
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`}
+          onClick={() => setActiveTab('analytics')}
+          style={{ padding: '0.5rem 1rem', background: 'transparent', border: 'none', borderBottom: activeTab === 'analytics' ? '2px solid var(--primary)' : '2px solid transparent', color: activeTab === 'analytics' ? 'var(--text-primary)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '1.1rem' }}
+        >
+          Analytics & Usage
+        </button>
+      </div>
+
+      {totalTokens >= TOKEN_LIMIT && (
+        <div className="alert-banner" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Zap size={20} />
+          <span><strong>Usage Limit Reached:</strong> You have exceeded the free tier limit of {TOKEN_LIMIT.toLocaleString()} tokens. Please upgrade or add your own API keys in Settings.</span>
+        </div>
+      )}
+
+      {activeTab === 'overview' && (
+        <>
+          <div className="dashboard-top-row" style={{ display: 'flex', gap: '2rem' }}>
         
         <div className="stats-grid" style={{ flex: 1, minWidth: '250px' }}>
           <div className="stat-card glass-panel highlight">
@@ -149,107 +178,125 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <h2 className="section-title" style={{ marginTop: '2rem' }}>5-Layer AI Usage</h2>
-      
-      {totalTokens > 0 && (
-        <div className="glass-panel" style={{ padding: '2rem', marginBottom: '1.5rem' }}>
-          <h3 style={{ margin: '0 0 1.5rem 0', fontSize: '1rem', color: 'var(--text-secondary)' }}>Token Usage by Provider</h3>
-          <div style={{ display: 'flex', alignItems: 'flex-end', height: '150px', gap: '1rem' }}>
-            {['openai', 'gemini', 'cerebras', 'groq', 'sarvam', 'local'].map(provider => {
-              const val = stats[provider] || 0;
-              const maxVal = Math.max(...Object.values(stats)) || 1;
-              const heightPct = Math.max((val / maxVal) * 100, 2); // min 2% for visibility
-              const colors = {
-                openai: '#3b82f6', gemini: '#eab308', cerebras: '#f97316', 
-                groq: '#ef4444', sarvam: '#a855f7', local: '#10b981'
-              };
-              
-              return (
-                <div key={provider} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    {val > 0 ? (val > 1000 ? (val/1000).toFixed(1) + 'k' : val) : '0'}
-                  </span>
-                  <div style={{ 
-                    width: '100%', 
-                    maxWidth: '40px', 
-                    height: `${heightPct}%`, 
-                    background: `linear-gradient(to top, ${colors[provider]}88, ${colors[provider]})`,
-                    borderRadius: '4px 4px 0 0',
-                    transition: 'height 0.5s ease'
-                  }}></div>
-                  <span style={{ fontSize: '0.75rem', textTransform: 'capitalize', color: 'var(--text-secondary)' }}>
-                    {provider}
-                  </span>
-                </div>
-              );
-            })}
+            )}
           </div>
-        </div>
+        </>
       )}
 
-      <div className="usage-grid">
-        
-        <div className="usage-card glass-panel">
-          <div className="usage-header">
-            <Bot size={20} color="#3b82f6" />
-            <h3>OpenAI (GPT-4o)</h3>
+      {activeTab === 'analytics' && (
+        <>
+          <h2 className="section-title">5-Layer AI Usage Analytics</h2>
+          
+          <div className="glass-panel" style={{ padding: '2rem', marginBottom: '1.5rem', display: 'flex', gap: '2rem', alignItems: 'center' }}>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: 'var(--text-secondary)' }}>Total Consumption</h3>
+              <p style={{ fontSize: '2.5rem', margin: 0, fontWeight: 'bold', color: 'var(--text-primary)' }}>{totalTokens.toLocaleString()}</p>
+              <p style={{ margin: '0.5rem 0 0 0', color: 'var(--text-muted)' }}>of {TOKEN_LIMIT.toLocaleString()} limit ({(totalTokens/TOKEN_LIMIT*100).toFixed(1)}%)</p>
+              <div style={{ width: '100%', height: '8px', background: 'var(--bg-base)', borderRadius: '4px', marginTop: '1rem', overflow: 'hidden' }}>
+                <div style={{ width: `${Math.min(100, (totalTokens/TOKEN_LIMIT)*100)}%`, height: '100%', background: totalTokens > TOKEN_LIMIT ? '#ef4444' : '#10b981' }}></div>
+              </div>
+            </div>
+            
+            {totalTokens > 0 && (
+              <div style={{ flex: 2 }}>
+                <h3 style={{ margin: '0 0 1.5rem 0', fontSize: '1rem', color: 'var(--text-secondary)' }}>Usage by Provider</h3>
+                <div style={{ display: 'flex', alignItems: 'flex-end', height: '150px', gap: '1rem' }}>
+                  {['openai', 'gemini', 'cerebras', 'groq', 'sarvam', 'local'].map(provider => {
+                    const val = stats[provider] || 0;
+                    const maxVal = Math.max(...Object.values(stats)) || 1;
+                    const heightPct = Math.max((val / maxVal) * 100, 2); 
+                    const colors = {
+                      openai: '#3b82f6', gemini: '#eab308', cerebras: '#f97316', 
+                      groq: '#ef4444', sarvam: '#a855f7', local: '#10b981'
+                    };
+                    
+                    return (
+                      <div key={provider} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          {val > 0 ? (val > 1000 ? (val/1000).toFixed(1) + 'k' : val) : '0'}
+                        </span>
+                        <div style={{ 
+                          width: '100%', 
+                          maxWidth: '40px', 
+                          height: `${heightPct}%`, 
+                          background: `linear-gradient(to top, ${colors[provider]}88, ${colors[provider]})`,
+                          borderRadius: '4px 4px 0 0',
+                          transition: 'height 0.5s ease'
+                        }}></div>
+                        <span style={{ fontSize: '0.75rem', textTransform: 'capitalize', color: 'var(--text-secondary)' }}>
+                          {provider}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
-          <div className="usage-body">
-            <span className="token-count">{stats.openai?.toLocaleString() || '0'}</span> tokens
-          </div>
-        </div>
 
-        <div className="usage-card glass-panel">
-          <div className="usage-header">
-            <Zap size={20} color="#eab308" />
-            <h3>Gemini (Free & Fast)</h3>
-          </div>
-          <div className="usage-body">
-            <span className="token-count">{stats.gemini?.toLocaleString() || '0'}</span> tokens
-          </div>
-        </div>
+          <div className="usage-grid">
+            <div className="usage-card glass-panel">
+              <div className="usage-header">
+                <Bot size={20} color="#3b82f6" />
+                <h3>OpenAI (GPT-4o)</h3>
+              </div>
+              <div className="usage-body">
+                <span className="token-count">{stats.openai?.toLocaleString() || '0'}</span> tokens
+              </div>
+            </div>
 
-        <div className="usage-card glass-panel">
-          <div className="usage-header">
-            <Zap size={20} color="#f97316" />
-            <h3>Cerebras (Llama-3.1)</h3>
-          </div>
-          <div className="usage-body">
-            <span className="token-count">{stats.cerebras?.toLocaleString() || '0'}</span> tokens
-          </div>
-        </div>
+            <div className="usage-card glass-panel">
+              <div className="usage-header">
+                <Zap size={20} color="#eab308" />
+                <h3>Gemini (Free & Fast)</h3>
+              </div>
+              <div className="usage-body">
+                <span className="token-count">{stats.gemini?.toLocaleString() || '0'}</span> tokens
+              </div>
+            </div>
 
-        <div className="usage-card glass-panel">
-          <div className="usage-header">
-            <Zap size={20} color="#ef4444" />
-            <h3>Groq (Llama-3)</h3>
-          </div>
-          <div className="usage-body">
-            <span className="token-count">{stats.groq?.toLocaleString() || '0'}</span> tokens
-          </div>
-        </div>
+            <div className="usage-card glass-panel">
+              <div className="usage-header">
+                <Zap size={20} color="#f97316" />
+                <h3>Cerebras (Llama-3.1)</h3>
+              </div>
+              <div className="usage-body">
+                <span className="token-count">{stats.cerebras?.toLocaleString() || '0'}</span> tokens
+              </div>
+            </div>
 
-        <div className="usage-card glass-panel">
-          <div className="usage-header">
-            <Code size={20} color="#a855f7" />
-            <h3>Sarvam</h3>
-          </div>
-          <div className="usage-body">
-            <span className="token-count">{stats.sarvam?.toLocaleString() || '0'}</span> tokens
-          </div>
-        </div>
+            <div className="usage-card glass-panel">
+              <div className="usage-header">
+                <Zap size={20} color="#ef4444" />
+                <h3>Groq (Llama-3)</h3>
+              </div>
+              <div className="usage-body">
+                <span className="token-count">{stats.groq?.toLocaleString() || '0'}</span> tokens
+              </div>
+            </div>
 
-        <div className="usage-card glass-panel">
-          <div className="usage-header">
-            <Server size={20} color="#10b981" />
-            <h3>WebLLM (Local Offline)</h3>
-          </div>
-          <div className="usage-body">
-            <span className="token-count">{stats.local?.toLocaleString() || '0'}</span> tokens
-          </div>
-        </div>
+            <div className="usage-card glass-panel">
+              <div className="usage-header">
+                <Code size={20} color="#a855f7" />
+                <h3>Sarvam</h3>
+              </div>
+              <div className="usage-body">
+                <span className="token-count">{stats.sarvam?.toLocaleString() || '0'}</span> tokens
+              </div>
+            </div>
 
-      </div>
+            <div className="usage-card glass-panel">
+              <div className="usage-header">
+                <Server size={20} color="#10b981" />
+                <h3>WebLLM (Local Offline)</h3>
+              </div>
+              <div className="usage-body">
+                <span className="token-count">{stats.local?.toLocaleString() || '0'}</span> tokens
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

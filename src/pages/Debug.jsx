@@ -4,10 +4,12 @@ import ReactMarkdown from 'react-markdown';
 import { useLocation } from 'react-router-dom';
 import { generateAIResponse } from '../services/ai';
 import { saveChatSession } from '../services/memory';
-import { getProjects } from '../services/ProjectService';
+import { getProjects, getProjectScan, getProjectFiles } from '../services/ProjectService';
+import { getProjectGitDiff } from '../services/GitService';
+import { getAllPersonas } from '../data/personas';
 import './Debug.css';
 
-const SYSTEM_PROMPT = "You are an elite Staff Software Engineer. Your only goal is to find bugs and output raw, fixed code without conversational fluff. Do not say hello or provide long explanations unless asked. Just output the corrected code. When making small changes to existing code, format your response as a ```diff block showing additions with + and deletions with -.";
+const DEFAULT_SYSTEM_PROMPT = "You are an elite Staff Software Engineer. Your only goal is to find bugs and output raw, fixed code without conversational fluff. Do not say hello or provide long explanations unless asked. Just output the corrected code. When making small changes to existing code, format your response as a ```diff block showing additions with + and deletions with -.";
 
 const Debug = () => {
   const [messages, setMessages] = useState([
@@ -19,7 +21,11 @@ const Debug = () => {
   const [selectedProvider, setSelectedProvider] = useState('cascade');
   const [projects, setProjects] = useState([]);
   const [linkedProject, setLinkedProject] = useState("");
+  const [projectScan, setProjectScan] = useState(null);
   
+  const [allPersonas, setAllPersonas] = useState([]);
+  const [selectedPersona, setSelectedPersona] = useState('reviewer');
+
   const location = useLocation();
   const messagesEndRef = useRef(null);
 
@@ -32,6 +38,7 @@ const Debug = () => {
   }, [messages]);
 
   useEffect(() => {
+    setAllPersonas(getAllPersonas());
     getProjects().then(data => {
       setProjects(data || []);
       if (location.state?.projectId) {
@@ -39,6 +46,14 @@ const Debug = () => {
       }
     });
   }, [location.state]);
+
+  useEffect(() => {
+    if (linkedProject) {
+      getProjectScan(linkedProject).then(data => setProjectScan(data));
+    } else {
+      setProjectScan(null);
+    }
+  }, [linkedProject]);
 
   const handleEdit = (text) => {
     setInput(text);
@@ -60,8 +75,44 @@ const Debug = () => {
     try {
       const initialMessages = [...history, { role: 'assistant', content: '' }];
       setMessages(initialMessages);
+      const userMessage = history[history.length - 1].content;
 
-      const enhancedPrompt = SYSTEM_PROMPT + (linkedProject ? `\n\n*** LINKED PROJECT CONTEXT ***\nWe are currently discussing the project with ID: ${linkedProject}. Here are its details:\n${JSON.stringify(projects.find(p => p.id === linkedProject) || {})}\n******************************` : '');
+      let projectContextStr = '';
+      if (linkedProject) {
+        const p = projects.find(proj => proj.id === linkedProject) || {};
+        projectContextStr = `*** LINKED PROJECT CONTEXT ***\nProject Name: ${p.name}\nLanguage: ${p.language}\nFramework: ${p.framework}\n`;
+        
+        if (projectScan?.files) {
+          projectContextStr += `\nTotal Files: ${projectScan.totalFiles}\nProject contains these files (subset): ${projectScan.files.slice(0, 50).join(', ')}${projectScan.totalFiles > 50 ? '...' : ''}\n`;
+          
+          const mentionedFiles = projectScan.files.filter(f => userMessage.includes(f));
+          if (mentionedFiles.length > 0) {
+            setLoadStatus(`Reading ${mentionedFiles.length} file(s)...`);
+            const fileContents = await getProjectFiles(linkedProject, mentionedFiles);
+            projectContextStr += `\n--- READ FILES CONTENTS ---\n`;
+            for (const [file, content] of Object.entries(fileContents)) {
+              if (content) {
+                projectContextStr += `\nFile: ${file}\n\`\`\`\n${content}\n\`\`\`\n`;
+              }
+            }
+          }
+        }
+
+        if (userMessage.toLowerCase().includes('git') || userMessage.toLowerCase().includes('change') || userMessage.toLowerCase().includes('diff')) {
+          setLoadStatus(`Fetching Git diff...`);
+          const gitRes = await getProjectGitDiff(linkedProject);
+          if (gitRes.diff) {
+             projectContextStr += `\n--- GIT UNCOMMITTED CHANGES ---\n\`\`\`diff\n${gitRes.diff}\n\`\`\`\n`;
+          }
+        }
+        
+        projectContextStr += `******************************\n`;
+      }
+      
+      const currentPersonaObj = allPersonas.find(p => p.id === selectedPersona);
+      const personaPrompt = currentPersonaObj ? currentPersonaObj.prompt : DEFAULT_SYSTEM_PROMPT;
+
+      const enhancedPrompt = personaPrompt + (linkedProject ? `\n\n${projectContextStr}` : '');
 
       let responseText = await generateAIResponse(
         history, 
@@ -142,6 +193,24 @@ const Debug = () => {
           >
             <option value="">-- No Project Linked --</option>
             {projects.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          <select 
+            value={selectedPersona}
+            onChange={(e) => setSelectedPersona(e.target.value)}
+            style={{
+              marginLeft: '0.5rem',
+              padding: '0.4rem',
+              borderRadius: 'var(--radius-sm)',
+              background: 'rgba(0,0,0,0.3)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-color)',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="reviewer">Strict Code Reviewer (Default)</option>
+            {allPersonas.filter(p => p.id !== 'reviewer').map(p => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>

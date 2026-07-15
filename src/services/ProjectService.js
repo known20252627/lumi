@@ -30,3 +30,31 @@ export const importProject = async (projectPath, name = "") => {
     throw err;
   }
 };
+
+export const getProjectFiles = async (projectId, filePaths) => {
+  try {
+    const res = await fetch(`${API_URL}/projects/${projectId}/files`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePaths })
+    });
+    if (!res.ok) throw new Error('Failed to fetch project files');
+    return await res.json();
+  } catch (err) {
+    console.error("File Fetch Error:", err);
+    return {};
+  }
+};
+
+export const getProjectScan = async (projectId) => {
+  try {
+    const res = await fetch(`${API_URL}/projects/${projectId}/scan`);
+    if (!res.ok) throw new Error('Failed to fetch project scan');
+    return await res.json();
+  } catch (err) {
+    console.error("Scan Error:", err);
+    return null;
+  }
+};
+
+
