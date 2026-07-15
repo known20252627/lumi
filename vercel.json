@@ -1,0 +1,24 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/openai/:match*",
+      "destination": "https://api.openai.com/:match*"
+    },
+    {
+      "source": "/api/groq/:match*",
+      "destination": "https://api.groq.com/:match*"
+    },
+    {
+      "source": "/api/sarvam/:match*",
+      "destination": "https://api.sarvam.ai/:match*"
+    },
+    {
+      "source": "/api/cerebras/:match*",
+      "destination": "https://api.cerebras.ai/:match*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
