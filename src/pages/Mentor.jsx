@@ -194,23 +194,21 @@ CRITICAL: If the user asks you to play a video or a song, DO NOT just say "I can
       // Handle Open App Command
       const appRegex = /\[OPEN_APP:\s*(.+?)\]/i;
       const appMatch = responseText.match(appRegex);
+      let appLink = null;
       if (appMatch && appMatch[1]) {
         const urlToOpen = appMatch[1].trim();
         
         if (urlToOpen.startsWith('http')) {
-          // Standard website: Open in a new tab
+          // Standard website: Open automatically in a new tab
           window.open(urlToOpen, '_blank');
+          appOpened = true;
         } else {
-          // Native Deep Link: Use an invisible iframe to force the OS to open it without leaving the page
-          const iframe = document.createElement('iframe');
-          iframe.style.display = 'none';
-          iframe.src = urlToOpen;
-          document.body.appendChild(iframe);
-          setTimeout(() => document.body.removeChild(iframe), 3000);
+          // Native Deep Link: Browser blocks this asynchronously on PC. 
+          // We must render a physical button for the user to click.
+          appLink = urlToOpen;
         }
         
         responseText = responseText.replace(appRegex, '').trim();
-        appOpened = true;
       }
       
       // Handle Clear Tasks Command
@@ -241,10 +239,10 @@ CRITICAL: If the user asks you to play a video or a song, DO NOT just say "I can
         responseText += '\n\n*(🗑️ All tasks successfully cleared from your Planner)*';
       }
       if (appOpened) {
-        responseText += '\n\n*(🚀 Launching App automatically...)*';
+        responseText += '\n\n*(🚀 Launching Website automatically...)*';
       }
 
-      const finalMessages = [...newMessages, { role: 'assistant', content: responseText }];
+      const finalMessages = [...newMessages, { role: 'assistant', content: responseText, appLink: appLink }];
       setMessages(finalMessages);
       
       saveChatSession(finalMessages[1]?.content?.substring(0, 30) + '...', finalMessages);
@@ -349,6 +347,16 @@ CRITICAL: If the user asks you to play a video or a song, DO NOT just say "I can
             </div>
             <div className="message-bubble markdown-body" style={{ position: 'relative' }}>
               <ReactMarkdown>{msg.content}</ReactMarkdown>
+              {msg.appLink && (
+                <a href={msg.appLink} target="_blank" rel="noopener noreferrer" style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  marginTop: '12px', padding: '12px', background: 'var(--primary)', 
+                  color: 'white', borderRadius: 'var(--radius-md)', fontWeight: 'bold',
+                  textDecoration: 'none', boxShadow: 'var(--shadow-glow)', border: '1px solid #d946ef'
+                }}>
+                  ▶️ CLICK TO OPEN NATIVE APP
+                </a>
+              )}
               {msg.role === 'assistant' && (
                 <button 
                   className="copy-btn" 
