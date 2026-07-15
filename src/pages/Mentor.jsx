@@ -171,8 +171,9 @@ ${taskList}
 STRICT RULE FOR ACTIONS & TASKS:
 You have the physical ability to launch native apps on the user's device!
 1. APP LAUNCHER: If the user asks you to play a song, play a trailer, search for a video, or open an app, you MUST output the EXACT string [OPEN_APP: <URI>] anywhere in your response.
-   - For PC/Mobile Native Apps (e.g. Spotify): Output a deep link like [OPEN_APP: spotify:search:<query>]
-   - For Websites (e.g. YouTube, Google): Output a standard web link like [OPEN_APP: https://www.youtube.com/results?search_query=<query>]
+   - For Spotify / Music requests: You MUST use the native deep link format: \`[OPEN_APP: spotify:search:<query>]\`
+   - For YouTube / Video requests: You MUST use the standard web format: \`[OPEN_APP: https://www.youtube.com/results?search_query=<query>]\`
+   - For Google / Web searches: You MUST use the standard web format: \`[OPEN_APP: https://www.google.com/search?q=<query>]\`
 2. If the user EXPLICITLY asks you to "create a task", "add a todo", or "remind me to...", you must output the exact string [ADD_TASK: <Task Description>].
 3. If the user EXPLICITLY asks you to "clear all tasks", "delete my tasks", or "wipe my planner", you must output the exact string [CLEAR_TASKS].
 
