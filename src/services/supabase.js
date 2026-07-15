@@ -5,8 +5,11 @@ let supabaseInstance = null;
 export const getSupabaseClient = () => {
   if (supabaseInstance) return supabaseInstance;
   
-  const supabaseUrl = localStorage.getItem('lumi_supabase_url');
-  const supabaseKey = localStorage.getItem('lumi_supabase_key');
+  const envUrl = import.meta.env.VITE_SUPABASE_URL;
+  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  
+  const supabaseUrl = envUrl || localStorage.getItem('lumi_supabase_url');
+  const supabaseKey = envKey || localStorage.getItem('lumi_supabase_key');
   
   if (supabaseUrl && supabaseKey) {
     supabaseInstance = createClient(supabaseUrl, supabaseKey);

@@ -67,20 +67,29 @@ const Settings = () => {
           <p className="setting-description">
             To sync your API keys to your phone instantly, enter your free Supabase credentials below.
           </p>
-          <div className="input-group">
-            <label>Supabase Project URL</label>
-            <input 
-              type="text" name="url" value={supabaseAuth.url} onChange={handleSupabaseChange}
-              placeholder="https://xyz.supabase.co"
-            />
-          </div>
-          <div className="input-group">
-            <label>Supabase Anon Key</label>
-            <input 
-              type="password" name="key" value={supabaseAuth.key} onChange={handleSupabaseChange}
-              placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-            />
-          </div>
+          
+          {import.meta.env.VITE_SUPABASE_URL ? (
+            <div className="status-badge connected" style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: 'rgba(16, 185, 129, 0.1)' }}>
+              <Cloud size={16} /> Supabase Cloud Sync is permanently active via Vercel Environment Variables.
+            </div>
+          ) : (
+            <>
+              <div className="input-group">
+                <label>Supabase Project URL</label>
+                <input 
+                  type="text" name="url" value={supabaseAuth.url} onChange={handleSupabaseChange}
+                  placeholder="https://xyz.supabase.co"
+                />
+              </div>
+              <div className="input-group">
+                <label>Supabase Anon Key</label>
+                <input 
+                  type="password" name="key" value={supabaseAuth.key} onChange={handleSupabaseChange}
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                />
+              </div>
+            </>
+          )}
           <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
             <button className="btn-secondary" onClick={async () => {
               // Temporarily save to local storage so the pull function can use them
