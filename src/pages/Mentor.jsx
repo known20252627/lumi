@@ -17,6 +17,7 @@ const Mentor = () => {
   const [loadStatus, setLoadStatus] = useState("");
   const [selectedProvider, setSelectedProvider] = useState('cascade');
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const [memoryNotification, setMemoryNotification] = useState("");
   
   const messagesEndRef = useRef(null);
   const inputRef = useRef('');
@@ -216,6 +217,11 @@ If the user asks you to create a task, add a todo, or remind them of something, 
               sarvam: localStorage.getItem('lumi_sarvam_key')
             };
             await syncKeysToCloud(keys);
+            
+            setMemoryNotification("🧠 Lumi learned a new fact about you!");
+            setTimeout(() => setMemoryNotification(""), 4000);
+          } else {
+            console.log("Memory Extractor: No new facts found.");
           }
         } catch (e) {
           console.error("Background memory extraction failed", e);
@@ -310,7 +316,26 @@ If the user asks you to create a task, add a todo, or remind them of something, 
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="input-area glass-panel">
+      <div className="input-area glass-panel" style={{ position: 'relative' }}>
+        {memoryNotification && (
+          <div style={{
+            position: 'absolute',
+            top: '-40px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--bg-glass)',
+            border: '1px solid var(--primary)',
+            color: 'var(--primary)',
+            padding: '8px 16px',
+            borderRadius: 'var(--radius-full)',
+            fontSize: '0.85rem',
+            animation: 'fadeIn 0.3s ease-in-out',
+            boxShadow: 'var(--shadow-glow)',
+            whiteSpace: 'nowrap'
+          }}>
+            {memoryNotification}
+          </div>
+        )}
         <button 
           className={`btn-icon voice-btn ${isListening ? 'listening' : ''}`}
           onClick={toggleListen}
