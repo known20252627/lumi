@@ -33,9 +33,33 @@ const Planner = () => {
 
   return (
     <div className="page-container planner-container">
-      <div className="planner-header">
-        <h1><Target size={28} color="#ec4899" /> Feature Planner</h1>
-        <p>Track your app ideas, goals, and bugs to fix</p>
+      <div className="planner-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1><Target size={28} color="#ec4899" /> Feature Planner</h1>
+          <p>Track your app ideas, goals, and bugs to fix</p>
+        </div>
+        {goals.length > 0 && (
+          <button 
+            onClick={() => {
+              if (window.confirm("Are you sure you want to delete all tasks?")) {
+                saveGoals([]);
+              }
+            }}
+            style={{
+              padding: '0.5rem 1rem',
+              background: 'rgba(239, 68, 68, 0.1)',
+              color: '#ef4444',
+              border: '1px solid #ef4444',
+              borderRadius: 'var(--radius-md)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            <Trash2 size={16} /> Clear All
+          </button>
+        )}
       </div>
 
       <div className="planner-content glass-panel">
