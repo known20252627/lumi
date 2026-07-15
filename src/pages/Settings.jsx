@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Key, Cloud, Server, Shield } from 'lucide-react';
-import { syncKeysToCloud } from '../services/supabase';
+import { syncKeysToCloud, pullKeysFromCloud } from '../services/supabase';
 import './Settings.css';
 
 const Settings = () => {
@@ -80,6 +80,28 @@ const Settings = () => {
               type="password" name="key" value={supabaseAuth.key} onChange={handleSupabaseChange}
               placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
             />
+          </div>
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+            <button className="btn-secondary" onClick={async () => {
+              // Temporarily save to local storage so the pull function can use them
+              localStorage.setItem('lumi_supabase_url', supabaseAuth.url.trim());
+              localStorage.setItem('lumi_supabase_key', supabaseAuth.key.trim());
+              const data = await pullKeysFromCloud();
+              if (data) {
+                setKeys({
+                  openai: data.openai || '',
+                  gemini: data.gemini || '',
+                  groq: data.groq || '',
+                  cerebras: data.cerebras || '',
+                  sarvam: data.sarvam || ''
+                });
+                alert('Keys successfully pulled from cloud!');
+              } else {
+                alert('Failed to pull keys. Check credentials.');
+              }
+            }}>
+              Pull Keys from Cloud
+            </button>
           </div>
         </div>
       </div>
