@@ -124,7 +124,7 @@ const fetchSarvam = async (messages, apiKey, systemPrompt) => {
   const response = await fetch("/api/sarvam/v1/chat/completions", {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: "sarvam-2b-v0.5", messages: formatted, temperature: 0.7 })
+    body: JSON.stringify({ model: "sarvam-105b", messages: formatted, temperature: 0.7 })
   });
   if (!response.ok) {
     const err = await response.json().catch(()=>({}));
