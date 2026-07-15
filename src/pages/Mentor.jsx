@@ -150,6 +150,12 @@ const Mentor = () => {
       const rawMem = localStorage.getItem('lumi_personal_memory');
       const memoryVault = rawMem ? JSON.parse(rawMem) : [];
 
+      const rawGoals = localStorage.getItem('lumi_planner_goals');
+      const currentTasks = rawGoals ? JSON.parse(rawGoals) : [];
+      const taskList = currentTasks.length > 0 
+        ? currentTasks.map(t => `- ${t.text} (Completed: ${t.completed})`).join('\n')
+        : "No tasks currently in the planner.";
+
       const taskInstruction = `You are Lumi, a highly expert AI mentor. 
       
 *** LONG-TERM MEMORY VAULT ***
@@ -157,9 +163,15 @@ Here are facts you must permanently remember about the user:
 ${memoryVault.length > 0 ? memoryVault.join('\n') : 'No personal facts known yet.'}
 ******************************
 
+*** CURRENT PLANNER TASKS ***
+Here are the user's current tasks in their planner:
+${taskList}
+******************************
+
 STRICT RULE FOR TASKS:
-ONLY if the user EXPLICITLY asks you to "create a task", "add a todo", or "remind me to...", then you must output the exact string [ADD_TASK: <Task Description>].
-If the user is just talking or asking questions, DO NOT output [ADD_TASK]. Never create tasks automatically unless specifically commanded to.`;
+1. If the user EXPLICITLY asks you to "create a task", "add a todo", or "remind me to...", you must output the exact string [ADD_TASK: <Task Description>].
+2. If the user EXPLICITLY asks you to "clear all tasks", "delete my tasks", or "wipe my planner", you must output the exact string [CLEAR_TASKS].
+If the user is just talking or asking questions, DO NOT output any of these commands. Never create or clear tasks automatically unless specifically commanded to.`;
 
       let responseText = await generateAIResponse(
         newMessages, 
@@ -171,7 +183,16 @@ If the user is just talking or asking questions, DO NOT output [ADD_TASK]. Never
       const taskRegex = /\[ADD_TASK:\s*(.+?)\]/gi;
       let match;
       let taskAdded = false;
+      let tasksCleared = false;
       
+      // Handle Clear Tasks Command
+      if (responseText.includes('[CLEAR_TASKS]')) {
+        localStorage.setItem('lumi_planner_goals', JSON.stringify([]));
+        responseText = responseText.replace(/\[CLEAR_TASKS\]/gi, '').trim();
+        tasksCleared = true;
+      }
+
+      // Handle Add Task Command
       while ((match = taskRegex.exec(responseText)) !== null) {
         const taskDesc = match[1].trim();
         if (taskDesc) {
@@ -187,6 +208,9 @@ If the user is just talking or asking questions, DO NOT output [ADD_TASK]. Never
       
       if (taskAdded) {
         responseText += '\n\n*(✅ Task successfully added to your Planner)*';
+      }
+      if (tasksCleared) {
+        responseText += '\n\n*(🗑️ All tasks successfully cleared from your Planner)*';
       }
 
       const finalMessages = [...newMessages, { role: 'assistant', content: responseText }];
