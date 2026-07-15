@@ -168,3 +168,30 @@ const runLocalWebLLM = async (messages, progressCallback, systemPrompt) => {
     throw e;
   }
 };
+
+// --- MEMORY EXTRACTOR ---
+export const extractPersonalMemory = async (userMessage) => {
+  const prompt = `You are a background Memory Extractor. Analyze the following message from the user. 
+If the user mentions any personal facts, preferences, names, rules, or details about themselves that would be useful to remember in future conversations, extract them into a concise bullet point list.
+If there are no personal facts to extract (e.g., they just asked a coding question), output exactly the word "NONE".
+
+User Message: "${userMessage}"`;
+
+  try {
+    const response = await generateAIResponse(
+      [{ role: 'user', content: prompt }],
+      null,
+      'cascade',
+      'You extract facts.'
+    );
+
+    if (response.trim().toUpperCase() === 'NONE' || response.trim() === '') {
+      return null;
+    }
+
+    return response.trim();
+  } catch (e) {
+    console.error("Memory Extraction Failed:", e);
+    return null;
+  }
+};

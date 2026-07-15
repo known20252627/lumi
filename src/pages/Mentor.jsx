@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Mic, MicOff, Bot, User, Volume2, VolumeX, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { generateAIResponse } from '../services/ai';
+import { generateAIResponse, extractPersonalMemory } from '../services/ai';
 import { saveChatSession } from '../services/memory';
 import './Mentor.css';
 
@@ -146,7 +146,17 @@ const Mentor = () => {
     setLoadStatus("Thinking...");
 
     try {
-      const taskInstruction = "You are Lumi, a highly expert AI mentor. If the user asks you to create a task, add a todo, or remind them of something, you MUST output the exact string [ADD_TASK: <Task Description>] anywhere in your response. For example: [ADD_TASK: Build the login page].";
+      const rawMem = localStorage.getItem('lumi_personal_memory');
+      const memoryVault = rawMem ? JSON.parse(rawMem) : [];
+
+      const taskInstruction = `You are Lumi, a highly expert AI mentor. 
+      
+*** LONG-TERM MEMORY VAULT ***
+Here are facts you must permanently remember about the user:
+${memoryVault.length > 0 ? memoryVault.join('\n') : 'No personal facts known yet.'}
+******************************
+
+If the user asks you to create a task, add a todo, or remind them of something, you MUST output the exact string [ADD_TASK: <Task Description>] anywhere in your response. For example: [ADD_TASK: Build the login page].`;
 
       let responseText = await generateAIResponse(
         newMessages, 
@@ -184,6 +194,22 @@ const Mentor = () => {
       if (isVoiceMode) {
         speakText(responseText);
       }
+      
+      // Run background memory extractor
+      setTimeout(async () => {
+        try {
+          const newFact = await extractPersonalMemory(userMessage);
+          if (newFact) {
+            const memRaw = localStorage.getItem('lumi_personal_memory');
+            const memories = memRaw ? JSON.parse(memRaw) : [];
+            memories.push(newFact);
+            localStorage.setItem('lumi_personal_memory', JSON.stringify(memories));
+            console.log("Memory Vault Updated:", newFact);
+          }
+        } catch (e) {
+          console.error("Background memory extraction failed", e);
+        }
+      }, 100);
       
     } catch (error) {
       setMessages([...newMessages, { 

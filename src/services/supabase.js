@@ -19,7 +19,7 @@ export const getSupabaseClient = () => {
 };
 
 /**
- * Saves all 6 API keys to a specific user's row in Supabase.
+ * Saves all 6 API keys and Memory to a specific user's row in Supabase.
  * If Supabase is not configured, it silently falls back to localStorage.
  */
 export const syncKeysToCloud = async (keys, userId = 'default-user') => {
@@ -35,6 +35,9 @@ export const syncKeysToCloud = async (keys, userId = 'default-user') => {
   // If Supabase is connected, sync them to the cloud
   if (client) {
     try {
+      const memoryRaw = localStorage.getItem('lumi_personal_memory');
+      const memoryData = memoryRaw ? JSON.parse(memoryRaw) : [];
+
       const { error } = await client
         .from('api_keys')
         .upsert({ 
@@ -44,6 +47,7 @@ export const syncKeysToCloud = async (keys, userId = 'default-user') => {
           groq: keys.groq,
           cerebras: keys.cerebras,
           sarvam: keys.sarvam,
+          personal_memory: memoryData,
           updated_at: new Date().toISOString()
         });
       
@@ -55,7 +59,7 @@ export const syncKeysToCloud = async (keys, userId = 'default-user') => {
 };
 
 /**
- * Pulls API keys from Supabase and applies them locally.
+ * Pulls API keys and Memory from Supabase and applies them locally.
  */
 export const pullKeysFromCloud = async (userId = 'default-user') => {
   const client = getSupabaseClient();
@@ -77,6 +81,10 @@ export const pullKeysFromCloud = async (userId = 'default-user') => {
       localStorage.setItem('lumi_groq_key', data.groq || '');
       localStorage.setItem('lumi_cerebras_key', data.cerebras || '');
       localStorage.setItem('lumi_sarvam_key', data.sarvam || '');
+      
+      if (data.personal_memory) {
+        localStorage.setItem('lumi_personal_memory', JSON.stringify(data.personal_memory));
+      }
       return data;
     }
   } catch (e) {
