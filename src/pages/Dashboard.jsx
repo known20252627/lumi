@@ -177,11 +177,8 @@ const Dashboard = () => {
           )}
         </div>
       </div>
-
-            )}
-          </div>
-        </>
-      )}
+    </>
+  )}
 
       {activeTab === 'analytics' && (
         <>

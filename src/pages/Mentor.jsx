@@ -197,13 +197,6 @@ const Mentor = () => {
         ? currentTasks.map(t => `- ${t.text} (Completed: ${t.completed})`).join('\n')
         : "No tasks currently in the planner.";
 
-      const taskInstruction = `You are Lumi, a highly expert AI mentor. 
-      
-*** LONG-TERM MEMORY VAULT ***
-Here are facts you must permanently remember about the user:
-${memoryVault.length > 0 ? memoryVault.join('\n') : 'No personal facts known yet.'}
-******************************
-
       let projectContextStr = '';
       if (linkedProject) {
         const p = projects.find(proj => proj.id === linkedProject) || {};

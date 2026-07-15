@@ -18,7 +18,6 @@ const Settings = () => {
     url: '',
     key: ''
   });
-  });
   const [saved, setSaved] = useState(false);
   
   const [customPersonas, setCustomPersonas] = useState([]);
@@ -43,7 +42,7 @@ const Settings = () => {
       url: localStorage.getItem('lumi_supabase_url') || '',
       key: localStorage.getItem('lumi_supabase_key') || ''
     });
-    });
+
     setCustomPersonas(getCustomPersonas());
     const rawMem = localStorage.getItem('lumi_personal_memory');
     setMemories(rawMem ? JSON.parse(rawMem) : []);
