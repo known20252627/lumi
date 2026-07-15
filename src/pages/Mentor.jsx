@@ -364,15 +364,22 @@ STRICT RULE FOR ACTIONS & TASKS:
             console.log("Memory Vault Updated:", newFact);
             
             // Automatically push new memory to Supabase Cloud
-            const { syncKeysToCloud } = await import('../services/supabase.js');
-            const keys = {
-              openai: await decryptText(localStorage.getItem('lumi_openai_key')),
-              gemini: await decryptText(localStorage.getItem('lumi_api_key')),
-              groq: await decryptText(localStorage.getItem('lumi_groq_key')),
-              cerebras: await decryptText(localStorage.getItem('lumi_cerebras_key')),
-              sarvam: await decryptText(localStorage.getItem('lumi_sarvam_key'))
-            };
-            await syncKeysToCloud(keys);
+            try {
+              const { syncKeysToCloud } = await import('../services/supabase.js');
+              const keys = {
+                openai: await decryptText(localStorage.getItem('lumi_openai_key')),
+                gemini: await decryptText(localStorage.getItem('lumi_api_key')),
+                groq: await decryptText(localStorage.getItem('lumi_groq_key')),
+                cerebras: await decryptText(localStorage.getItem('lumi_cerebras_key')),
+                sarvam: await decryptText(localStorage.getItem('lumi_sarvam_key'))
+              };
+              await syncKeysToCloud(keys);
+            } catch (err) {
+              if (err.message && err.message.toLowerCase().includes('failed to fetch dynamically imported module')) {
+                // Vercel deployment update caused chunk to invalidate. Force refresh.
+                window.location.reload();
+              }
+            }
             
             setMemoryNotification("🧠 Lumi learned a new fact about you!");
             setTimeout(() => setMemoryNotification(""), 4000);
@@ -502,16 +509,16 @@ STRICT RULE FOR ACTIONS & TASKS:
                 </div>
               )}
               {msg.role === 'assistant' ? (
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <div className="message-actions">
                   <button 
-                    className="copy-btn" 
+                    className="action-btn" 
                     onClick={() => handleCopy(msg.content, index)}
                     title="Copy message"
                   >
                     {copiedIndex === index ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
                   </button>
                   <button 
-                    className="copy-btn" 
+                    className="action-btn" 
                     onClick={() => handleRegenerate(index)}
                     title="Regenerate response"
                   >
@@ -519,14 +526,15 @@ STRICT RULE FOR ACTIONS & TASKS:
                   </button>
                 </div>
               ) : (
-                <button 
-                  className="copy-btn" 
-                  onClick={() => handleEdit(msg.content)}
-                  title="Edit message"
-                  style={{ marginTop: '0.5rem' }}
-                >
-                  Edit
-                </button>
+                <div className="message-actions">
+                  <button 
+                    className="action-btn" 
+                    onClick={() => handleEdit(msg.content)}
+                    title="Edit message"
+                  >
+                    Edit
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -535,7 +543,7 @@ STRICT RULE FOR ACTIONS & TASKS:
           <div className="message-wrapper assistant">
             <div className="avatar"><Bot size={20} /></div>
             <div className="message-bubble loading-bubble">
-              <span className="typing-dots"><span>.</span><span>.</span><span>.</span></span>
+              <span className="typing-dots"><span /><span /><span /></span>
               {loadStatus && <span className="load-status">{loadStatus}</span>}
             </div>
           </div>
