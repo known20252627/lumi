@@ -205,6 +205,17 @@ If the user asks you to create a task, add a todo, or remind them of something, 
             memories.push(newFact);
             localStorage.setItem('lumi_personal_memory', JSON.stringify(memories));
             console.log("Memory Vault Updated:", newFact);
+            
+            // Automatically push new memory to Supabase Cloud
+            const { syncKeysToCloud } = await import('../services/supabase.js');
+            const keys = {
+              openai: localStorage.getItem('lumi_openai_key'),
+              gemini: localStorage.getItem('lumi_api_key'),
+              groq: localStorage.getItem('lumi_groq_key'),
+              cerebras: localStorage.getItem('lumi_cerebras_key'),
+              sarvam: localStorage.getItem('lumi_sarvam_key')
+            };
+            await syncKeysToCloud(keys);
           }
         } catch (e) {
           console.error("Background memory extraction failed", e);
