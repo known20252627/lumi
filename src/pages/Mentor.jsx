@@ -15,7 +15,7 @@ const Mentor = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadStatus, setLoadStatus] = useState("");
-  const [selectedProvider, setSelectedProvider] = useState('cascade');
+  const [selectedProvider, setSelectedProvider] = useState('cerebras');
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [memoryNotification, setMemoryNotification] = useState("");
   
