@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Target, Plus, CheckCircle, Circle, Trash2 } from 'lucide-react';
+import { useUI } from '../context/UIContext';
 import './Planner.css';
 
 const Planner = () => {
+  const { confirm, showToast } = useUI();
   const [goals, setGoals] = useState([]);
   const [newGoal, setNewGoal] = useState('');
 
@@ -40,9 +42,10 @@ const Planner = () => {
         </div>
         {goals.length > 0 && (
           <button 
-            onClick={() => {
-              if (window.confirm("Are you sure you want to delete all tasks?")) {
+            onClick={async () => {
+              if (await confirm("Are you sure you want to delete all tasks?")) {
                 saveGoals([]);
+                showToast("All tasks cleared.");
               }
             }}
             style={{

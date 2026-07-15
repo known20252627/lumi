@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { getChatHistory, clearChatHistory } from '../services/memory';
 import { Clock, MessageSquare, Trash2 } from 'lucide-react';
+import { useUI } from '../context/UIContext';
 import './History.css';
 
 const History = () => {
+  const { confirm, showToast } = useUI();
   const [history, setHistory] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
 
@@ -11,11 +13,13 @@ const History = () => {
     setHistory(getChatHistory());
   }, []);
 
-  const handleClear = () => {
-    if (confirm("Are you sure you want to delete all chat history? This will wipe Lumi's memory.")) {
+  const handleClear = async () => {
+    const isConfirmed = await confirm("Are you sure you want to delete all chat history? This will wipe Lumi's memory.");
+    if (isConfirmed) {
       clearChatHistory();
       setHistory([]);
       setSelectedSession(null);
+      showToast("Memory logs cleared.");
     }
   };
 

@@ -4,9 +4,22 @@ import { LayoutDashboard, MessageSquare, Bug, GitPullRequest, Settings, Clock, T
 import './Sidebar.css';
 
 const Sidebar = ({ isOpen, onClose }) => {
-  const [width, setWidth] = useState(260); // default width
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [width, setWidth] = useState(() => {
+    const saved = localStorage.getItem('lumi_sidebar_width');
+    return saved ? parseInt(saved, 10) : 260;
+  });
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    return localStorage.getItem('lumi_sidebar_collapsed') === 'true';
+  });
   const isResizing = useRef(false);
+
+  useEffect(() => {
+    localStorage.setItem('lumi_sidebar_width', width.toString());
+  }, [width]);
+
+  useEffect(() => {
+    localStorage.setItem('lumi_sidebar_collapsed', isCollapsed.toString());
+  }, [isCollapsed]);
 
   const navItems = [
     { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={20} /> },

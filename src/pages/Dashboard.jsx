@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Activity, Zap, Server, Code, Bot, Folder, Plus, Play, ChevronRight } from 'lucide-react';
 import { getProjects, importProject } from '../services/ProjectService';
+import { useUI } from '../context/UIContext';
 import './Dashboard.css';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { showToast } = useUI();
   const [stats, setStats] = useState({ openai: 0, gemini: 0, groq: 0, sarvam: 0, local: 0 });
   const [projects, setProjects] = useState([]);
   const [importPath, setImportPath] = useState('');
@@ -50,8 +52,9 @@ const Dashboard = () => {
       await importProject(importPath.trim());
       setImportPath('');
       await loadProjects();
+      showToast('Project imported successfully!');
     } catch (err) {
-      alert(err.message);
+      showToast(err.message);
     } finally {
       setIsImporting(false);
     }
@@ -137,7 +140,7 @@ const Dashboard = () => {
                     <span className="tag">{p.framework}</span>
                   </div>
                 </div>
-                <button className="btn-secondary resume-btn">
+                <button className="btn-secondary resume-btn" onClick={() => navigate('/mentor', { state: { projectId: p.id } })}>
                   <Play size={16} /> Resume Project
                 </button>
               </div>
@@ -155,7 +158,7 @@ const Dashboard = () => {
             <h3>OpenAI (GPT-4o)</h3>
           </div>
           <div className="usage-body">
-            <span className="token-count">{stats.openai.toLocaleString()}</span> tokens
+            <span className="token-count">{stats.openai?.toLocaleString() || '0'}</span> tokens
           </div>
         </div>
 
@@ -165,7 +168,7 @@ const Dashboard = () => {
             <h3>Gemini (Free & Fast)</h3>
           </div>
           <div className="usage-body">
-            <span className="token-count">{stats.gemini.toLocaleString()}</span> tokens
+            <span className="token-count">{stats.gemini?.toLocaleString() || '0'}</span> tokens
           </div>
         </div>
 
@@ -185,7 +188,7 @@ const Dashboard = () => {
             <h3>Groq (Llama-3)</h3>
           </div>
           <div className="usage-body">
-            <span className="token-count">{stats.groq.toLocaleString()}</span> tokens
+            <span className="token-count">{stats.groq?.toLocaleString() || '0'}</span> tokens
           </div>
         </div>
 
@@ -195,7 +198,7 @@ const Dashboard = () => {
             <h3>Sarvam</h3>
           </div>
           <div className="usage-body">
-            <span className="token-count">{stats.sarvam.toLocaleString()}</span> tokens
+            <span className="token-count">{stats.sarvam?.toLocaleString() || '0'}</span> tokens
           </div>
         </div>
 
@@ -205,7 +208,7 @@ const Dashboard = () => {
             <h3>WebLLM (Local Offline)</h3>
           </div>
           <div className="usage-body">
-            <span className="token-count">{stats.local.toLocaleString()}</span> tokens
+            <span className="token-count">{stats.local?.toLocaleString() || '0'}</span> tokens
           </div>
         </div>
 

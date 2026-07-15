@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Key, Cloud, Server, Shield } from 'lucide-react';
 import { syncKeysToCloud, pullKeysFromCloud } from '../services/supabase';
+import { useUI } from '../context/UIContext';
 import './Settings.css';
 
 const Settings = () => {
+  const { showToast } = useUI();
   const [keys, setKeys] = useState({
     openai: '',
     gemini: '',
@@ -104,9 +106,9 @@ const Settings = () => {
                   cerebras: data.cerebras || '',
                   sarvam: data.sarvam || ''
                 });
-                alert('Keys successfully pulled from cloud!');
+                showToast('Keys successfully pulled from cloud!');
               } else {
-                alert('Failed to pull keys. Check credentials.');
+                showToast('Failed to pull keys. Check credentials.');
               }
             }}>
               Pull Keys from Cloud

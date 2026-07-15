@@ -192,10 +192,9 @@ STRICT RULE FOR ACTIONS & TASKS:
       // Handle Open App Command
       const appRegex = /\[OPEN_APP:\s*(.+?)\]/i;
       const appMatch = responseText.match(appRegex);
+      let appLinkToOpen = null;
       if (appMatch && appMatch[1]) {
-        const urlToOpen = appMatch[1].trim();
-        // Standard website: Open automatically in a new tab
-        window.open(urlToOpen, '_blank');
+        appLinkToOpen = appMatch[1].trim();
         responseText = responseText.replace(appRegex, '').trim();
         appOpened = true;
       }
@@ -228,10 +227,10 @@ STRICT RULE FOR ACTIONS & TASKS:
         responseText += '\n\n*(🗑️ All tasks successfully cleared from your Planner)*';
       }
       if (appOpened) {
-        responseText += '\n\n*(🚀 Launching Website automatically...)*';
+        // We no longer launch automatically, we use the chip.
       }
 
-      const finalMessages = [...newMessages, { role: 'assistant', content: responseText }];
+      const finalMessages = [...newMessages, { role: 'assistant', content: responseText, appLink: appLinkToOpen }];
       setMessages(finalMessages);
       
       saveChatSession(finalMessages[1]?.content?.substring(0, 30) + '...', finalMessages);
@@ -336,6 +335,13 @@ STRICT RULE FOR ACTIONS & TASKS:
             </div>
             <div className="message-bubble markdown-body" style={{ position: 'relative' }}>
               <ReactMarkdown>{msg.content}</ReactMarkdown>
+              {msg.appLink && (
+                <div style={{ marginTop: '0.75rem' }}>
+                  <a href={msg.appLink} target="_blank" rel="noopener noreferrer" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+                    🚀 Open {(() => { try { return new URL(msg.appLink).hostname; } catch(e) { return 'Link'; } })()}
+                  </a>
+                </div>
+              )}
               {msg.role === 'assistant' && (
                 <button 
                   className="copy-btn" 
@@ -409,12 +415,18 @@ STRICT RULE FOR ACTIONS & TASKS:
           {isVoiceMode ? <Volume2 size={20} /> : <VolumeX size={20} />}
         </button>
         
-        <input
-          type="text"
+        <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
           placeholder="Ask me anything or tap the mic..."
+          rows={1}
+          style={{ resize: 'none' }}
         />
         
         <button id="hidden-send-btn" className="btn-icon send-btn" onClick={handleSend}>

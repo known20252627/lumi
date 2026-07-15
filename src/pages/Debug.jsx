@@ -115,14 +115,14 @@ const Debug = () => {
             onChange={(e) => setInput(e.target.value)}
             placeholder="Paste your error trace or broken code here..."
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && e.shiftKey) {
+              if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
               }
             }}
           />
           <button className="btn-primary" onClick={handleSend} disabled={isLoading}>
-            {isLoading ? "Debugging..." : "Fix Code (Shift+Enter)"}
+            {isLoading ? "Debugging..." : "Fix Code (Enter)"}
           </button>
         </div>
       </div>
