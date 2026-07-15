@@ -157,7 +157,9 @@ Here are facts you must permanently remember about the user:
 ${memoryVault.length > 0 ? memoryVault.join('\n') : 'No personal facts known yet.'}
 ******************************
 
-If the user asks you to create a task, add a todo, or remind them of something, you MUST output the exact string [ADD_TASK: <Task Description>] anywhere in your response. For example: [ADD_TASK: Build the login page].`;
+STRICT RULE FOR TASKS:
+ONLY if the user EXPLICITLY asks you to "create a task", "add a todo", or "remind me to...", then you must output the exact string [ADD_TASK: <Task Description>].
+If the user is just talking or asking questions, DO NOT output [ADD_TASK]. Never create tasks automatically unless specifically commanded to.`;
 
       let responseText = await generateAIResponse(
         newMessages, 
